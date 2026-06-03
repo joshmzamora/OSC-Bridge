@@ -1,6 +1,7 @@
 const { app, BrowserWindow } = require('electron')
 const { UDPPort } = require('osc');
 const path = require('path');
+const fs = require('fs');
 
 const OSC = new UDPPort({
   localAddress: "0.0.0.0",
@@ -26,6 +27,21 @@ const createWindow = () => {
     : path.join(__dirname, '../sketch');
 
   win.loadFile(path.join(sketchDir, 'index.html'));
+
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.key === 'f' && input.control) {
+      win.setFullScreen(!win.isFullScreen());
+    }
+  });
+
+  let reloadTimeout;
+  const watcher = fs.watch(sketchDir, { recursive: true }, () => {
+    clearTimeout(reloadTimeout);
+    reloadTimeout = setTimeout(() => {
+      if (!win.isDestroyed()) win.webContents.reload();
+    }, 100);
+  });
+  win.on('closed', () => watcher.close());
 
   OSC.on("message", ({address, args}) => {
     if (win.isDestroyed()) return;

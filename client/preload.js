@@ -2,9 +2,12 @@ const { ipcRenderer, contextBridge } = require('electron');
 
 contextBridge.exposeInMainWorld('OSC', {
   route: (pattern, callback) => {
+    const regex = new RegExp(
+      '^' + pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]+') + '$'
+    );
     window.addEventListener("OSC", ({ detail }) => {
       const { addr, vals } = detail;
-      if (addr.match(`${pattern}$`)) callback(addr, vals);
+      if (regex.test(addr)) callback(vals, addr);
     });
   }
 });
