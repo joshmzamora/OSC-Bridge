@@ -30,6 +30,13 @@
     },
     "win": {
       "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": "dmg"
     }
   }
 }
