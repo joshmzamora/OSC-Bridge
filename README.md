@@ -44,5 +44,8 @@ Use ```OSC.route("<pattern>", <handler>)``` to create OSC message handlers
   - ```vals``` - either a single value or an array of values, depending on the number of OSC message arguments
   - ```address``` - the full OSC message address
 
-   
-See example at [sketch.js](https://github.com/yonatanrozin/OSC-Bridge/blob/main/sketch/sketch.js) 
+See example sketches [here](https://github.com/yonatanrozin/OSC-Bridge/blob/main/examples) 
+
+To try out an example sketch, copy the sketch files into the application sketch folder
+- Launch app and enter Ctrl-E (or cmd-E) to open the application sketch folder.
+- __Copy the example sketch files only - NOT the entire folder!__

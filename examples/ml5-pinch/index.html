@@ -1,0 +1,23 @@
+<!-- 
+  Handpose + OSC example
+  Built using the ml5.js handpose model: https://docs.ml5js.org/#/reference/handpose 
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ML5.js HandPose + OSC</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.10/p5.min.js"></script>
+    <script src="https://unpkg.com/ml5@1/dist/ml5.min.js"></script>
+  </head>
+  <body style="margin: 0; padding: 0;"> 
+    <h1>ML5.js HandPose + OSC</h1>
+    <p>Pinch the slider with your thumb and index finger to move it!</p>
+    <p>Sends OSC message (address <code>/slider</code>) with slider position (0 - 1) to port <code>4243</code> when moved.</p>
+    <p>
+    <script src="sketch.js"></script>
+  </body>
+</html>
