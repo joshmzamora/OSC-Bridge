@@ -4,7 +4,7 @@ __Docs in progress.__
 
 A simple app that forwards incoming OSC messages to a static web-app.
 
-Windows 11 tested, MacOS coming soon.
+Windows 11 tested, MacOS Sequoia functional (needs testing).
 
 ## Installation
 
@@ -13,7 +13,7 @@ Windows 11 tested, MacOS coming soon.
 ## Usage
 
 - Modify files in ```<app_contents>/sketch``` 
-  - To locate sketch folder, launch osc_bridge app and enter Ctrl-E
+  - To locate sketch folder easily, launch osc_bridge app and enter Ctrl-E
   - (optional) See API notes below for sending/receiving OSC messages from JavaScript
 - Launch osc_bridge app
 - Use ```ctrl-F``` / ```cmd-F``` to toggle fullscreen
