@@ -3,7 +3,7 @@ const { ipcRenderer, contextBridge, ipcMain } = require('electron');
 contextBridge.exposeInMainWorld('OSC', {
   route: (pattern, callback) => {
     const regex = new RegExp(
-      '^' + pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]+') + '$'
+      pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]+') + '$'
     );
     window.addEventListener("OSC", ({ detail }) => {
       const { addr, vals } = detail;
