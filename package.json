@@ -19,7 +19,7 @@
   },
   "build": {
     "files": "client/**/*",
-    "extraFiles": [
+    "extraResources": [
       {
         "from": "sketch",
         "to": "sketch"

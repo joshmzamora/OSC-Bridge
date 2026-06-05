@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 
 const sketchDir = app.isPackaged
-  ? path.join(path.dirname(app.getPath('exe')), 'sketch')
+  ? path.join(process.resourcesPath, 'sketch')
   : path.join(__dirname, '../sketch');
 
 const OSC = new UDPPort({
@@ -31,10 +31,10 @@ const createWindow = () => {
   win.webContents.send("sketchDir", sketchDir);
 
   win.webContents.on('before-input-event', (event, input) => {
-    if (input.type === 'keyDown' && input.key === 'f' && input.control) {
+    if (input.type === 'keyDown' && input.key === 'f' && (input.control || input.meta)) {
       win.setFullScreen(!win.isFullScreen());
     }
-    if (input.type === 'keyDown' && input.key === 'e' && input.control) {
+    if (input.type === 'keyDown' && input.key === 'e' && (input.control || input.meta)) {
       shell.openPath(sketchDir);
     }
     if (input.type === 'keyDown' && input.key === 'Escape') {
