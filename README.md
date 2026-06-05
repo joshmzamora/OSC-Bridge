@@ -4,7 +4,7 @@ __Docs in progress.__
 
 A simple app that forwards incoming OSC messages to a static web-app.
 
-Windows 11, MacOS Sequoia functional (needs testing).
+Windows 11 tested, MacOS Sequoia functional (needs testing).
 
 ## Installation
 
