@@ -9,6 +9,7 @@ Windows 11 tested, MacOS Sequoia functional (needs testing).
 ## Installation
 
 - Download and install latest [release](https://github.com/yonatanrozin/OSC-Bridge/releases)
+  - Opening installed app may show security warning on Mac computers. Allow permission in "Privacy & Security" section of system preferences. Scroll down in section to find security message, click "open anyway".
 
 ## Usage
 
