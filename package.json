@@ -23,6 +23,10 @@
       {
         "from": "sketch",
         "to": "sketch"
+      },
+      {
+        "from": "receivers",
+        "to": "receivers"
       }
     ],
     "directories": {
