@@ -2,11 +2,11 @@
 
 __Docs in progress.__
 
-A simple program that runs static HTML/JavaScript files as full-screen desktop applications and enables OSC communication for new networking possibilities.
-
-Tested on Windows 11, functional on Mac but needs testing
+A simple program that runs static HTML/JavaScript files as full-screen desktop applications and enables (optional) OSC communication for new networking possibilities.
 
 ## Installation
+
+Tested on Windows 11, functional on Mac but needs testing
 
 - Download and install latest [release](https://github.com/yonatanrozin/OSC-Bridge/releases)
   - Opening installed app may show security warning on Mac computers (first launch only). After showing warning, allow permission in "Privacy & Security" section of system preferences.
@@ -24,7 +24,7 @@ Tested on Windows 11, functional on Mac but needs testing
 
 ## API
 
-__This API is NOT available in the browser! It is only available within the OSC Bridge application context.__
+__This API is only available within the OSC Bridge application context. It is NOT available within the web browser!__
 
 ### Sending OSC
 
@@ -50,3 +50,6 @@ See example sketches [here](https://github.com/yonatanrozin/OSC-Bridge/blob/main
 To try out an example sketch, copy the sketch files into the application sketch folder
 - Launch app and enter Ctrl-E (or cmd-E) to open the application sketch folder.
 - __Copy the example sketch files only - NOT the entire folder!__
+
+## License
+This software is distributed under the MIT license. Feel free to use it but please do leave appropriate credit, especially in any online materials related to your project!
