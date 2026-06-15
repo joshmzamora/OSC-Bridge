@@ -2,14 +2,14 @@
 
 __Docs in progress.__
 
-A simple app that forwards incoming OSC messages to a static web-app.
+A simple program that runs static HTML/JavaScript files as full-screen desktop applications and enables OSC communication for new networking possibilities.
 
-Windows 11 tested, MacOS Sequoia functional (needs testing).
+Tested on Windows 11, functional on Mac but needs testing
 
 ## Installation
 
 - Download and install latest [release](https://github.com/yonatanrozin/OSC-Bridge/releases)
-  - Opening installed app may show security warning on Mac computers. Allow permission in "Privacy & Security" section of system preferences. Scroll down in section to find security message, click "open anyway".
+  - Opening installed app may show security warning on Mac computers (first launch only). After showing warning, allow permission in "Privacy & Security" section of system preferences.
 
 ## Usage
 
@@ -24,7 +24,7 @@ Windows 11 tested, MacOS Sequoia functional (needs testing).
 
 ## API
 
-__This API is NOT available in the browser! It is only available when run within the OSC Bridge application.__
+__This API is NOT available in the browser! It is only available within the OSC Bridge application context.__
 
 ### Sending OSC
 
