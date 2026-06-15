@@ -6,10 +6,22 @@ A simple program that runs static HTML/JavaScript files as full-screen desktop a
 
 ## Installation
 
+### Option 1 - download installer
+
 Tested on Windows 11, functional on Mac but needs testing
 
 - Download and install latest [release](https://github.com/yonatanrozin/OSC-Bridge/releases)
   - Opening installed app may show security warning on Mac computers (first launch only). After showing warning, allow permission in "Privacy & Security" section of system preferences.
+ 
+### Option 2 - build from source
+
+Requires [Node.js](https://nodejs.org/en/download) installed
+
+- Clone this repository or download and extract .zip file
+- In new terminal window, from repository folder:
+  - ```npm install```
+  - ```npm run build``` (takes 1-2 minutes)
+  - Find newly-built application and installer files in ```/dist``` folder
 
 ## Usage
 
