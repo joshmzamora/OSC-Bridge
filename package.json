@@ -1,6 +1,6 @@
 {
   "name": "osc_bridge",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A simple app that forwards incoming OSC messages to a static webpage.",
   "license": "ISC",
   "author": "",
@@ -13,9 +13,6 @@
   "devDependencies": {
     "electron": "^41.3.0",
     "electron-builder": "^26.8.1"
-  },
-  "dependencies": {
-    "osc": "^2.4.5"
   },
   "build": {
     "files": "client/**/*",
@@ -38,5 +35,8 @@
     "mac": {
       "target": "dmg"
     }
+  },
+  "dependencies": {
+    "node-osc": "^11.5.0"
   }
 }

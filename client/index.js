@@ -1,5 +1,5 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron')
-const { UDPPort } = require('osc');
+const { Server } = require('node-osc');
 const path = require('path');
 const fs = require('fs');
 
@@ -7,16 +7,13 @@ const sketchDir = app.isPackaged
   ? path.join(process.resourcesPath, 'sketch')
   : path.join(__dirname, '../sketch');
 
-const OSC = new UDPPort({
-  localAddress: "0.0.0.0",
-  localPort: 4242
-});
-OSC.open();
+const OSC = new Server(4242, "0.0.0.0");
 
 const createWindow = () => {
   const win = new BrowserWindow({
     width: 800,
     height: 600,
+    fullscreen: true,
     fullscreenable: true,
     webPreferences: {
       webSecurity: false,
@@ -52,12 +49,15 @@ const createWindow = () => {
   });
   win.on('closed', () => watcher.close());
 
+  OSC.on("bundle", ({elements}) => {
+    elements.forEach(([address, ...args]) => {
+      if (!win.isDestroyed()) win.webContents.send('OSC', { address, args });
+    })
+  });
+
   //forward OSC messages to renderer
   OSC.on("message", ({address, args}) => {
-    if (win.isDestroyed()) return;
-    win.webContents.send('OSC', {
-      addr: address, vals: args?.length === 1 ? args[0] : args
-    });
+    if (!win.isDestroyed()) win.webContents.send('OSC', { address, args });
   });
 
   ipcMain.on('openSketchDir', () => shell.openPath(sketchDir));

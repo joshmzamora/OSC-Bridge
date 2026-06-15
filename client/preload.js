@@ -6,8 +6,8 @@ contextBridge.exposeInMainWorld('OSC', {
       pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]+') + '$'
     );
     window.addEventListener("OSC", ({ detail }) => {
-      const { addr, vals } = detail;
-      if (regex.test(addr)) callback(vals, addr);
+      const { args, address } = detail;
+      if (regex.test(address)) callback(args, address);
     });
   },
   send: (addr, vals, IP, port) => {
@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('OSC', {
 });
 contextBridge.exposeInMainWorld('openSketchDir', () => ipcRenderer.send('openSketchDir'));
 
-ipcRenderer.on("OSC", (_, { addr, vals }) => {
-  window.dispatchEvent(new CustomEvent("OSC", { detail: { addr, vals } }));
+ipcRenderer.on("OSC", (_, { address, args }) => {
+  console.log(_, address, args);
+  window.dispatchEvent(new CustomEvent("OSC", { detail: { address, args } }));
 });
