@@ -26,7 +26,7 @@ function setup() {
   slider = createSlider(0, 1, .5, 0);
   slider.position(0, canvas.elt.offsetTop + height/2);
   slider.size(width);
-  OSC.send(`/slider`, slider.value()); //send initial slider value
+  slider.input((e) => OSC.send(`/slider`, slider.value()));
 }
 
 function draw() {
@@ -50,7 +50,7 @@ function draw() {
       //if pinch y is near slider: update slider value according to horizontal pinch location
       if (Math.abs(pinch_location[1] - .5) < .1) {
         slider.value(pinch_location[0]); 
-        OSC.send(`/slider`, pinch_location[0]); 
+        OSC.send(`/slider`, slider.value()); 
       }
     }
 

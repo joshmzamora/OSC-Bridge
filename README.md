@@ -2,7 +2,7 @@
 
 __Docs in progress.__
 
-A simple program that runs static HTML/JavaScript files as full-screen desktop applications and enables (optional) OSC communication for new networking possibilities.
+A simple program that runs static HTML/JavaScript files as full-screen desktop applications and enables OSC communication for new networking possibilities.
 
 ## Installation
 
@@ -11,7 +11,7 @@ A simple program that runs static HTML/JavaScript files as full-screen desktop a
 Tested on Windows 11, functional on Mac but needs testing
 
 - Download and install latest [release](https://github.com/yonatanrozin/OSC-Bridge/releases)
-  - Opening installed app may show security warning on Mac computers (first launch only). After showing warning, allow permission in "Privacy & Security" section of system preferences.
+  - Opening installed app for the first time may show security warning on Mac computers. After receiving warning, allow permission in "Privacy & Security" section of computer system preferences.
  
 ### Option 2 - build from source
 
@@ -21,47 +21,89 @@ Requires [Node.js](https://nodejs.org/en/download) installed
 - In new terminal window, from repository folder:
   - ```npm install```
   - ```npm run build``` (takes 1-2 minutes)
-  - Find newly-built application and installer files in ```/dist``` folder
+  - Find newly-built application and installer in ```/dist``` folder
 
 ## Usage
 
 - Modify files in ```<app_contents>/sketch``` 
-  - To locate sketch folder easily, launch osc_bridge app and enter Ctrl-E
-  - (optional) See API notes below for sending/receiving OSC messages from JavaScript
+  - See API notes below for sending/receiving OSC messages within your sketch
 - Launch osc_bridge app
-- Use ```ctrl-F``` / ```cmd-F``` to toggle fullscreen
-- Use ```ctrl-R``` / ```cmd-R``` to refresh page
-- Use ```ctrl-E``` / ```cmd-E``` to open sketch files folder
+- Use ```ctrl-E``` to open sketch files folder in file browser for easy location
   - __Editing these files while app is running will refresh the sketch!__
+- Use ```ctrl-F``` to toggle fullscreen
+- Use ```ctrl-R``` to refresh page
+- Use ```ctrl-I``` to display computer's local IP address. Use this IP address and port 4242 when sending OSC messages to this sketch.
 
 ## API
 
 __This API is only available within the OSC Bridge application context. It is NOT available within the web browser!__
 
+- ```window.localIP``` - returns the computer's current local IP address. Send OSC messages to port 4242 with this IP address to interface with your sketch! 
+  - You can also get your local IP address by running the app and entering ```ctrl-I```.
+
 ### Sending OSC
 
-To send OSC messages: ```OSC.send("<address>", <args>, "<IP_Addr>", <port>)```
+To send OSC messages from your sketch: ```OSC.send("<address>", <args>, "<IP_Addr>", <port>)```
 - ```<address>``` - a valid OSC message address, i.e. ```"/mousePosition"```
 - ```<args>``` - a string, number, boolean, or array of strings/numbers/bools
   - Boolean arguments are converted to integers (0 or 1)
-- ```<IP_Addr>``` & ```<port>``` - destination IP address and port for the OSC message. Leave out for default: ```"localhost"``` port 4243
+- ```<IP_Addr>``` & ```<port>``` (optional) - destination IP address and port for the OSC message. Leave out for default ```"localhost"``` port 4243
 
 ### Receiving OSC
 
-App receives OSC messages on port __4242__.
+Sketch receives OSC messages on port __4242__.
 
-Use ```OSC.route("<pattern>", <handler>)``` to create OSC message handlers
-- ```<pattern>``` - OSC address pattern
+Use ```OSC.route("<address>", <handler>)``` to create OSC message handlers
+- ```<address>``` - OSC address to route
   - Use ```*``` as a single-level wildcard (e.g. ```/*/temperature``` will match addresses ```/device1/temperature```, ```/anything/temperature```, etc.)
 - ```<handler>``` - a callback function with up to 2 arguments: ```(vals, address)```
-  - ```vals``` - either a single value or an array of values, depending on the number of OSC message arguments
-  - ```address``` - the full OSC message address
+  - ```vals``` - an array of arguments (numbers or strings)
+  - ```address``` - the full OSC message address, in case needed
 
-See example sketches [here](https://github.com/yonatanrozin/OSC-Bridge/blob/main/examples) 
+## Examples
+
+See sketch examples [here](https://github.com/yonatanrozin/OSC-Bridge/blob/main/examples)
 
 To try out an example sketch, copy the sketch files into the application sketch folder
 - Launch app and enter Ctrl-E (or cmd-E) to open the application sketch folder.
 - __Copy the example sketch files only - NOT the entire folder!__
+
+Example sketches are designed to work with free Zig Sim app on iOS and Android. _Zig Sim Pro uses different OSC addresses and will require adjustments to the sketch OSC routes._
+- Ensure smartphone and computer are on the same WiFi network
+- In Zig Sim "sensors" tab 
+  - Enable required hardware data streams
+  - See below for specific required sensors per example
+- Zig Sim "settings" tab
+  - Select ```other app``` destination, ```UDP``` protocol and ```OSC``` message format
+  - Enter computer's local IP address and port 4242
+  - Select frame rate (30 or 60 recommended)
+- Enter "start" tab to begin - smartphone must stay on with the Zig Sim app open!
+
+### OSC Log (default sketch)
+- Displays all incoming OSC message addresses + arguments in an on-screen table
+- See headers at top for computer's IP address. Use this IP address and port 4242 to send OSC messages to the sketch (from Zig Sim or other source)
+
+### Etch-a-sketch
+- Enable Zig Sim "2D Touch", "Accel" and "Touch Radius" sensors
+- Touch phone screen to draw on the computer canvas. Press harder for thicker lines.
+- Shake the phone to clear the canvas!
+
+### Fruit Ninja
+- Enable Zig Sim "2D Touch", "Gravity" and "Compass" sensors
+- Point phone at computer/monitor and tap phone screen to calibrate pointer
+- Slice fruit with the orientation sensor!
+
+### Jump!
+- Enable Zig Sim "accel" sensor
+- Place phone in pocket with upper edge facing UP
+- Jump to avoid the obstacles!
+
+### ML5 Pinch
+- Does not use Zig Sim. Ensure computer has internet and camera access.
+- Pinch the on-screen slider with a thumb and index finger to move it!
+- Sketch will send OSC messages with the ```/slider``` address and slider position when moved.
+  - Edit line 53 of sketch.js to set OSC destination (default is ```localhost``` port ```4243```)
+    - i.e. ```OSC.send(`/slider`, pinch_location[0], "12,34,56,78", 7000);```
 
 ## License
 This software is distributed under the MIT license. Feel free to use it but please do leave appropriate credit, especially in any online materials related to your project!
