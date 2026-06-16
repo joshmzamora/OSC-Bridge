@@ -6,6 +6,8 @@ A simple program that runs static HTML/JavaScript files as full-screen desktop a
 
 ![](https://yonatanrozin.com/wp-content/uploads/2026/06/IMG_8374-1-2.gif)
 
+Read more about the project [here](https://yonatanrozin.com/project/osc-bridge/).
+
 ## Installation
 
 - Tested and functional on Windows 11
