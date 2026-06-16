@@ -6,6 +6,9 @@ A simple program that runs static HTML/JavaScript files as full-screen desktop a
 
 ## Installation
 
+- Tested on Windows 11
+- Functional on MacOS (Sequoia tested) - __Camera functionality currently not functional__
+
 ### Option 1 - download installer
 
 Tested on Windows 11, functional on Mac but needs testing
