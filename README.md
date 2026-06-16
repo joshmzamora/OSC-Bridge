@@ -1,6 +1,6 @@
-# OSC Bridge App
+# OSC Bridge
 
-__Docs in progress.__
+__Currently in development - functionality NOT guaranteed!!__
 
 A simple program that runs static HTML/JavaScript files as full-screen desktop applications and enables OSC communication for new networking possibilities.
 
@@ -8,8 +8,8 @@ A simple program that runs static HTML/JavaScript files as full-screen desktop a
 
 ## Installation
 
-- Tested on Windows 11
-- Functional on MacOS (Sequoia tested) - __Camera functionality currently not functional__
+- Tested and functional on Windows 11
+- Functional on MacOS Sequoia - __Camera functionality currently NOT functional__
 
 ### Option 1 - download installer
 
