@@ -1,5 +1,5 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron')
-const { Server } = require('node-osc');
+const { Server, Client } = require('node-osc');
 const path = require('path');
 const fs = require('fs');
 
@@ -16,6 +16,7 @@ const createWindow = () => {
     fullscreen: true,
     fullscreenable: true,
     webPreferences: {
+      sandbox: false,
       webSecurity: false,
       nodeIntegration: false,
       contextIsolation: true,
@@ -65,7 +66,7 @@ const createWindow = () => {
   //forward messages from renderer to OSC
   ipcMain.on('OSC', (_, address, vals, IP="127.0.0.1", port=4243) => {
     const args = Array.isArray(vals) ? vals : [vals];
-    OSC.send({ address, args }, IP, port);
+    new Client(IP, port).send(address, ...args);
   });
 }
 

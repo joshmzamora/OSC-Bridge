@@ -1,23 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/addons/p5.sound.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="style.css">
-    <meta charset="utf-8" />
-    <title>Zig-sim Etch-a-sketch</title>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OSC Bridge</title>
+    <style>
+      h1, h3 {margin: 0; padding: 0;}
+      tr th {
+        text-align: left;
+      }
+    </style>
   </head>
-  <body>
-    <h1>Zig-sim Etch-a-sketch</h1>
-    <h3>By Yonatan Rozin</h3>
-    <p>Zig Sim free required (iOS tested) w/ 2D touch, accel and touch radius data enabled.</p>
-    <p>Use this computer's IP address and port 4242 in Zig Sim settings.</p>
-    <p><b>Use phone screen to draw, shake phone to clear!</b></p>
+  <body >
+    <h1>OSC Bridge</h1>
+    <h3>By <a href="https://yonatanrozin.com" target="_blank" >Yonatan Rozin</a></h3>
     <p>
-      ctrl-F (or cmd-F) to toggle fullscreen (esc to exit).<br/>
-      ctrl-R (or cmd-R) to refresh page.<br/>
-      ctrl-E (or cmd-E) to open live sketch files folder.
+      Send OSC messages to IP address <code id="IP"></code> port <code>4242</code> and they will appear in the table below.
+      <br/>Make sure this computer and the sending device are on the same local network!
     </p>
-    <script src="sketch.js"></script>
+  
+    <table style="font-family: monospace; border-spacing: 10px;">
+      <thead><tr><th>Address</th><th>Args</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <p>Enter ctrl-E to open rendered sketch folder. Place your sketch files in here!
+      <br/>Find example sketches <a target="_blank" href="https://github.com/yonatanrozin/OSC-Bridge/tree/main/examples">here</a>. 
+      <br/>Copy the files from one of the example sketch folders (not the entire folder!) into here to start.
+    </p>
+    <script>
+      document.getElementById("IP").textContent = window.localIP;
+      const messages = {}
+      const table = document.querySelector("tbody");
+      OSC.route("*", (args, addr) => {
+        messages[addr] = JSON.stringify(args);
+        table.innerHTML = Object.entries(messages).map(([addr, args]) => `<tr><th>${addr}</th><td>${args}</td></tr>`).join("");
+      });
+    </script>
   </body>
 </html>

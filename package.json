@@ -5,9 +5,9 @@
   "license": "ISC",
   "author": "",
   "type": "commonjs",
-  "main": "client/index.js",
+  "main": "main/index.js",
   "scripts": {
-    "start": "electron ./client/index",
+    "start": "electron ./main/index",
     "build": "electron-builder build"
   },
   "devDependencies": {
@@ -15,7 +15,7 @@
     "electron-builder": "^26.8.1"
   },
   "build": {
-    "files": "client/**/*",
+    "files": "main/**/*",
     "extraResources": [
       {
         "from": "sketch",
