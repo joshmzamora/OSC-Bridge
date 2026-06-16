@@ -4,6 +4,8 @@ __Docs in progress.__
 
 A simple program that runs static HTML/JavaScript files as full-screen desktop applications and enables OSC communication for new networking possibilities.
 
+![Fruit Ninja](https://yonatanrozin.com/wp-content/uploads/2026/06/IMG_8374-1-1-1.gif)
+
 ## Installation
 
 - Tested on Windows 11
