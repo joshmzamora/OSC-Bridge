@@ -1,6 +1,6 @@
 {
   "name": "osc_bridge",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A simple app that forwards incoming OSC messages to a static webpage.",
   "license": "MIT",
   "author": "Yonatan Rozin",

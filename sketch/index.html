@@ -14,19 +14,19 @@
   </head>
   <body >
     <h1>OSC Bridge</h1>
-    <h3>By <a href="https://yonatanrozin.com" target="_blank" >Yonatan Rozin</a></h3>
+    <h3>By <a href="https://yonatanrozin.com/project/osc-bridge" target="_blank" >Yonatan Rozin</a></h3>
     <p>
-      Send OSC messages to IP address <code id="IP"></code> port <code>4242</code> and they will appear in the table below.
+      Send OSC messages to this computer's IP address using port <code>4242</code> and they will appear in the table below.
       <br/>Make sure this computer and the sending device are on the same local network!
+      <br/>Enter <code>CTRL-I</code> to see your IP address.
     </p>
-  
     <table style="font-family: monospace; border-spacing: 10px;">
       <thead><tr><th>Address</th><th>Args</th></tr></thead>
       <tbody></tbody>
     </table>
-    <p>Enter ctrl-E to open rendered sketch folder. Place your sketch files in here!
+    <p>Enter <code>CTRL-E</code> to open live sketch folder. Place your sketch files in here and this window will reload automatically.
       <br/>Find example sketches <a target="_blank" href="https://github.com/yonatanrozin/OSC-Bridge/tree/main/examples">here</a>. 
-      <br/>Copy the files from one of the example sketch folders (not the entire folder!) into here to start.
+      <br/>Copy the files from one of the example sketch folders (not the entire folder!) into this application's sketch folder to try it out.
     </p>
     <script>
       document.getElementById("IP").textContent = window.localIP;
