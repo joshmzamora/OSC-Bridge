@@ -117,6 +117,12 @@ Example sketches are designed to work with free Zig Sim app on iOS and Android. 
 - Place phone in pocket with upper edge facing UP
 - Jump to avoid the obstacles!
 
+### Steering
+- Enable Zig Sim "gyroscope" and "gravity" sensors
+- Hold phone horizontally, top of phone facing left, with the touchscreen facing you
+- Steer left and right to stay on the winding road!
+- Tilt the phone towards/away from you to speed up and slow down.
+
 ### ML5 Pinch
 - Does not use Zig Sim. Ensure computer has internet and camera access.
 - Pinch the on-screen slider with a thumb and index finger to move it!
