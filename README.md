@@ -28,7 +28,17 @@ Requires [Node.js](https://nodejs.org/en/download) installed
 - In new terminal window, from repository folder:
   - ```npm install```
   - ```npm run build``` (takes 1-2 minutes)
-  - Find newly-built application and installer in ```/dist``` folder
+  - Find newly-built installer in ```/dist``` folder
+  - __This will replace your existing installer!__ See below for instructions on compiling multiple apps.
+
+#### Building multiple apps
+
+To build multiple apps (eg. to manage several concurrent projects), each app must be given a unique "product name":
+
+- Before running ```npm run build``` in the instructions above, update your ```package.json``` file:
+  - ```name```: set to something unique - must contain only lowercase numbers, letters and underscores
+  - ```build.productName```: enter the name you'd like to use for the appliaction
+  - ```build.appId```: set to something unique - convention is ```com.example.<name>```
 
 ## Usage
 
@@ -68,6 +78,8 @@ Use ```OSC.route("<address>", <handler>)``` to create OSC message handlers
   - ```address``` - the full OSC message address, in case needed
 
 ## Examples
+
+__The Zig Sim mobile app (which most of the examples below use) was recently updated, including changes to the message OSC addresses. Be sure you are using the latest version of the Zig Sim app. The etch-a-sketch example is currently not working following the update. Fix coming soon! Rest of examples are functional.__
 
 See sketch examples [here](https://github.com/yonatanrozin/OSC-Bridge/blob/main/examples)
 

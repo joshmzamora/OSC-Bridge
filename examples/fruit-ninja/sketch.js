@@ -19,7 +19,7 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   background(0);
   OSC.route("/compass", (vals) => compass = vals[0]);
-  OSC.route("/touch0", () => compassOffset = compass);
+  OSC.route("/touch*", () => compassOffset = compass);
   OSC.route("/gravity", (vals) => angle = vals[1]);
   rectMode(CORNERS);
 }
