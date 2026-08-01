@@ -1,0 +1,56 @@
+name: Publish OSC Bridge v2.2.1
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/publish-v2-2-1.yml]
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  prepare-and-dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Prepare patch version
+        run: |
+          npm version 2.2.1 --no-git-tag-version
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'CHANGELOG.md';
+          const current = fs.readFileSync(path, 'utf8');
+          const entry = `# Changelog\n\n## 2.2.1\n\n- Fixed the Palm Cove startup overlay remaining above a running match in packaged Windows builds.\n- Replaced asynchronous document-write hydration with an explicit document head/body swap.\n- Added a startup timeout with a visible error state instead of an indefinite loading spinner.\n- Expanded the Electron end-to-end test to verify the loader, loading title, and duplicate document structure are removed.\n\n`;
+          if (!current.startsWith('# Changelog\n')) throw new Error('Unexpected changelog format');
+          fs.writeFileSync(path, entry + current.slice('# Changelog\n\n'.length));
+          NODE
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - name: Verify Electron renderer
+        run: xvfb-run -a npm run e2e:table-tennis
+      - name: Verify package construction
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx electron-builder --linux dir --x64 --publish never
+      - name: Commit and tag v2.2.1
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json CHANGELOG.md
+          git commit -m "release OSC Bridge v2.2.1"
+          git tag -a v2.2.1 -m "OSC Bridge v2.2.1"
+          git push origin HEAD:main
+          git push origin v2.2.1
+      - name: Dispatch installer release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref v2.2.1
