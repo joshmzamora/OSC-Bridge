@@ -20,6 +20,7 @@ const rollLabel = document.querySelector('#roll');
 let socket;
 let reconnectTimer;
 let reconnectDelay = 500;
+let reconnectDisabled = false;
 let deviceId = '';
 let sensorEnabled = false;
 let lastOrientationSent = 0;
@@ -40,8 +41,22 @@ function send(payload) {
   return true;
 }
 
+function scheduleReconnect() {
+  clearTimeout(reconnectTimer);
+  if (reconnectDisabled || navigator.onLine === false) return;
+  reconnectTimer = setTimeout(connect, reconnectDelay);
+  reconnectDelay = Math.min(reconnectDelay * 1.7, 8000);
+}
+
 function connect() {
   clearTimeout(reconnectTimer);
+  if (
+    reconnectDisabled
+    || navigator.onLine === false
+    || socket?.readyState === WebSocket.OPEN
+    || socket?.readyState === WebSocket.CONNECTING
+  ) return;
+
   setConnection('connecting', 'Connecting');
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   socket = new WebSocket(`${protocol}//${location.host}/ws?token=${encodeURIComponent(token)}`);
@@ -62,14 +77,19 @@ function connect() {
   });
 
   socket.addEventListener('close', (event) => {
+    socket = undefined;
     if (event.code === 1008) {
+      reconnectDisabled = true;
       setConnection('offline', 'Link expired');
       permissionNote.textContent = 'This pairing link expired. Scan the current QR code on the computer.';
       return;
     }
+    if (navigator.onLine === false) {
+      setConnection('offline', 'Offline');
+      return;
+    }
     setConnection('offline', 'Reconnecting');
-    reconnectTimer = setTimeout(connect, reconnectDelay);
-    reconnectDelay = Math.min(reconnectDelay * 1.7, 8000);
+    scheduleReconnect();
   });
 
   socket.addEventListener('error', () => socket.close());
@@ -157,6 +177,20 @@ async function requestMotionPermission() {
   return results.every((result) => result === 'granted');
 }
 
+async function acquireWakeLock() {
+  if (!sensorEnabled || document.visibilityState !== 'visible' || wakeLock) return;
+  try {
+    const lock = await navigator.wakeLock?.request('screen');
+    if (!lock) return;
+    wakeLock = lock;
+    lock.addEventListener('release', () => {
+      if (wakeLock === lock) wakeLock = undefined;
+    }, { once: true });
+  } catch {
+    // Wake Lock is optional and may be unavailable in low-power mode.
+  }
+}
+
 async function enableMotion() {
   enableMotionButton.disabled = true;
   try {
@@ -170,9 +204,7 @@ async function enableMotion() {
     sensorEnabled = true;
     setupCard.classList.add('is-enabled');
     send({ type: 'status', event: 'motion-enabled', detail: `${rateSelect.value} Hz` });
-    try {
-      wakeLock = await navigator.wakeLock?.request('screen');
-    } catch { /* Wake Lock is optional. */ }
+    await acquireWakeLock();
   } catch (error) {
     permissionNote.textContent = error.message || 'Motion access failed. Check Safari settings and reload.';
     enableMotionButton.disabled = false;
@@ -246,10 +278,19 @@ renameButton.addEventListener('click', () => {
   send({ type: 'identify', name: phoneName });
 });
 
-document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState === 'visible' && sensorEnabled && !wakeLock) {
-    try { wakeLock = await navigator.wakeLock?.request('screen'); } catch { /* Optional. */ }
-  }
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') acquireWakeLock();
+});
+
+window.addEventListener('online', () => {
+  if (reconnectDisabled) return;
+  reconnectDelay = 500;
+  connect();
+});
+
+window.addEventListener('offline', () => {
+  clearTimeout(reconnectTimer);
+  setConnection('offline', 'Offline');
 });
 
 if (!window.isSecureContext) {
