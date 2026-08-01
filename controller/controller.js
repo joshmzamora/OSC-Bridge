@@ -59,15 +59,21 @@ function connect() {
 
   setConnection('connecting', 'Connecting');
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  socket = new WebSocket(`${protocol}//${location.host}/ws?token=${encodeURIComponent(token)}`);
+  const nextSocket = new WebSocket(`${protocol}//${location.host}/ws?token=${encodeURIComponent(token)}`);
+  socket = nextSocket;
 
-  socket.addEventListener('open', () => {
+  nextSocket.addEventListener('open', () => {
+    if (socket !== nextSocket) {
+      nextSocket.close(1000, 'Superseded connection');
+      return;
+    }
     reconnectDelay = 500;
     setConnection('connected', 'Connected');
     send({ type: 'identify', name: phoneName });
   });
 
-  socket.addEventListener('message', (event) => {
+  nextSocket.addEventListener('message', (event) => {
+    if (socket !== nextSocket) return;
     let message;
     try { message = JSON.parse(event.data); } catch { return; }
     if (message.type === 'hello') {
@@ -76,7 +82,8 @@ function connect() {
     }
   });
 
-  socket.addEventListener('close', (event) => {
+  nextSocket.addEventListener('close', (event) => {
+    if (socket !== nextSocket) return;
     socket = undefined;
     if (event.code === 1008) {
       reconnectDisabled = true;
@@ -92,7 +99,7 @@ function connect() {
     scheduleReconnect();
   });
 
-  socket.addEventListener('error', () => socket.close());
+  nextSocket.addEventListener('error', () => nextSocket.close());
 }
 
 function wrapAngle(angle) {
