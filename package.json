@@ -5,14 +5,14 @@
   "license": "MIT",
   "author": "Yonatan Rozin; enhancements by Joshua Zamora",
   "type": "commonjs",
-  "main": "main/index.js",
+  "main": "main/bootstrap.js",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "start": "electron ./main/index.js",
+    "start": "electron ./main/bootstrap.js",
     "test": "node --test tests/*.test.js",
-    "check": "node --check main/index.js && node --check main/preload.js && node --check main/bridge-utils.js && node --check controller/controller.js && node --check sketch/ping-pong-core.js && node --check scripts/e2e-table-tennis.js && node --check scripts/extract-table-tennis.js",
+    "check": "node --check main/bootstrap.js && node --check main/index.js && node --check main/preload.js && node --check main/bridge-utils.js && node --check main/update-utils.js && node --check main/windows-updater.js && node --check controller/controller.js && node --check sketch/ping-pong-core.js && node --check scripts/e2e-table-tennis.js && node --check scripts/extract-table-tennis.js",
     "e2e:table-tennis": "electron --no-sandbox scripts/e2e-table-tennis.js",
     "verify:table-tennis": "npm run check && npm test",
     "extract:table-tennis": "node scripts/extract-table-tennis.js",
@@ -54,6 +54,16 @@
     },
     "win": {
       "target": "nsis"
+    },
+    "nsis": {
+      "artifactName": "OSC.Bridge.Setup.${version}.${ext}",
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": true,
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": false
     },
     "mac": {
       "target": "dmg",
