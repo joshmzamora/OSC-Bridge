@@ -1,0 +1,137 @@
+name: Harden ping pong gameplay
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/harden-ping-pong.yml
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply gameplay reliability fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('sketch/ping-pong.js')
+          text = path.read_text()
+
+          old = "  lastFrame: performance.now(),\n};"
+          new = "  lastFrame: performance.now(),\n  resumeState: 'playing',\n  pausedAt: 0,\n};"
+          assert old in text, 'game state tail not found'
+          text = text.replace(old, new, 1)
+
+          old = '''function togglePause() {
+            if (game.state === 'playing' || game.state === 'countdown') {
+              game.state = 'paused';
+              elements.overlayEyebrow.textContent = 'MATCH PAUSED';
+              elements.overlayTitle.textContent = 'Take a breather';
+              elements.overlayMessage.textContent = 'Press B, P, or Resume when you are ready.';
+              elements.startButton.textContent = 'Resume';
+              elements.matchState.textContent = 'Paused';
+              showOverlay();
+            } else if (game.state === 'paused') {
+              game.state = 'playing';
+              elements.matchState.textContent = 'Playing';
+              hideOverlay();
+            }
+          }
+          '''.replace('          ', '')
+          new = '''function togglePause() {
+            if (game.state === 'playing' || game.state === 'countdown') {
+              game.resumeState = game.state;
+              game.pausedAt = performance.now();
+              game.state = 'paused';
+              elements.overlayEyebrow.textContent = 'MATCH PAUSED';
+              elements.overlayTitle.textContent = 'Take a breather';
+              elements.overlayMessage.textContent = 'Press B, P, or Resume when you are ready.';
+              elements.startButton.textContent = 'Resume';
+              elements.matchState.textContent = 'Paused';
+              showOverlay();
+            } else if (game.state === 'paused') {
+              if (game.resumeState === 'countdown') {
+                game.countdownStarted += performance.now() - game.pausedAt;
+                game.state = 'countdown';
+                elements.matchState.textContent = 'Serve';
+              } else {
+                game.state = 'playing';
+                elements.matchState.textContent = 'Playing';
+              }
+              hideOverlay();
+            }
+          }
+          '''.replace('          ', '')
+          assert old in text, 'pause handler not found'
+          text = text.replace(old, new, 1)
+
+          old = '''  if (parsed.event === 'orientation') {
+            if (performance.now() < phone.touchUntil) return;
+            const [, beta, gamma] = args;
+            const mapped = normalizedTilt(beta, gamma, elements.tiltAxis.value);
+            phone.axis = mapped.axis;
+            phone.y = mapped.value;
+          '''
+          new = '''  if (parsed.event === 'orientation') {
+            if (performance.now() < phone.touchUntil) return;
+            const [, beta, gamma] = args;
+            const selectedAxis = elements.tiltAxis.value;
+            const preferredAxis = selectedAxis === 'auto' ? phone.axis : selectedAxis;
+            const mapped = normalizedTilt(beta, gamma, preferredAxis);
+            phone.axis = mapped.axis;
+            phone.y = mapped.value;
+          '''
+          assert old in text, 'orientation mapping not found'
+          text = text.replace(old, new, 1)
+
+          old = "  renderPhones();\n}\n\nfunction targetFromPhone"
+          new = "}\n\nfunction targetFromPhone"
+          assert old in text, 'high-frequency phone rerender not found'
+          text = text.replace(old, new, 1)
+
+          old = '''  updateCountdown(now);
+            if (game.state !== 'paused' && game.state !== 'gameover') {
+              updatePaddles(dt);
+              updateBall(dt);
+              updateParticles(dt);
+            }
+          '''.replace('          ', '')
+          new = '''  updateCountdown(now);
+            if (game.state !== 'paused') {
+              if (game.state !== 'gameover') {
+                updatePaddles(dt);
+                updateBall(dt);
+              }
+              updateParticles(dt);
+            }
+          '''.replace('          ', '')
+          assert old in text, 'animation loop not found'
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Validate application
+        run: |
+          npm ci
+          npm run check
+          npm test
+          npx electron-builder --dir --linux
+
+      - name: Commit fixes
+        run: |
+          rm .github/workflows/harden-ping-pong.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "harden ping pong controls and pause flow"
+          git push origin HEAD:main
