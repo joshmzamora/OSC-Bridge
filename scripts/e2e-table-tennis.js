@@ -42,6 +42,22 @@ app.whenReady().then(async () => {
     check();
   })`);
 
+  const bootstrap = await window.webContents.executeJavaScript(`({
+    title: document.title,
+    gameShell: Boolean(document.getElementById('gameShell')),
+    loader: Boolean(document.querySelector('[data-table-tennis-loader]')),
+    loadingText: document.body.innerText.includes('Preparing the resort court'),
+    htmlCount: document.querySelectorAll('html').length,
+    bodyCount: document.querySelectorAll('body').length,
+  })`);
+  assert.equal(bootstrap.gameShell, true);
+  assert.equal(bootstrap.loader, false);
+  assert.equal(bootstrap.loadingText, false);
+  assert.equal(bootstrap.htmlCount, 1);
+  assert.equal(bootstrap.bodyCount, 1);
+  assert.match(bootstrap.title, /^Palm Cove Table Tennis/);
+  assert.doesNotMatch(bootstrap.title, /^Loading /);
+
   const result = await window.webContents.executeJavaScript('window.__TABLE_TENNIS_TEST__.runSmoke()');
   assert.equal(result.ready, true);
   assert.equal(result.hit, true);
