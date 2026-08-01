@@ -138,9 +138,16 @@ function handleMotion(event) {
 }
 
 async function requestMotionPermission() {
+  if (!('DeviceMotionEvent' in globalThis) && !('DeviceOrientationEvent' in globalThis)) {
+    throw new Error('This browser does not expose phone motion sensors. Open the controller in Safari.');
+  }
   const requests = [];
-  if (typeof globalThis.DeviceMotionEvent?.requestPermission === 'function') requests.push(globalThis.DeviceMotionEvent.requestPermission());
-  if (typeof globalThis.DeviceOrientationEvent?.requestPermission === 'function') requests.push(globalThis.DeviceOrientationEvent.requestPermission());
+  if (typeof globalThis.DeviceMotionEvent?.requestPermission === 'function') {
+    requests.push(globalThis.DeviceMotionEvent.requestPermission());
+  }
+  if (typeof globalThis.DeviceOrientationEvent?.requestPermission === 'function') {
+    requests.push(globalThis.DeviceOrientationEvent.requestPermission());
+  }
   const results = await Promise.all(requests);
   return results.every((result) => result === 'granted');
 }
@@ -148,6 +155,9 @@ async function requestMotionPermission() {
 async function enableMotion() {
   enableMotionButton.disabled = true;
   try {
+    if (!window.isSecureContext) {
+      throw new Error('Safari does not trust this controller yet. Install and fully trust the OSC Bridge certificate, then reopen the controller.');
+    }
     const granted = await requestMotionPermission();
     if (!granted) throw new Error('Motion permission was not granted.');
     window.addEventListener('deviceorientation', handleOrientation, true);
@@ -236,5 +246,10 @@ document.addEventListener('visibilitychange', async () => {
     try { wakeLock = await navigator.wakeLock?.request('screen'); } catch { /* Optional. */ }
   }
 });
+
+if (!window.isSecureContext) {
+  permissionNote.textContent = 'Certificate trust is incomplete. Return to the setup page, install the OSC Bridge profile, and enable full trust.';
+  enableMotionButton.disabled = true;
+}
 
 connect();
