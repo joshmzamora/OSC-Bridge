@@ -1,14 +1,25 @@
 {
   "name": "osc_bridge",
-  "version": "1.0.3",
-  "description": "A simple app that forwards incoming OSC messages to a static webpage.",
+  "version": "2.0.0",
+  "description": "A standalone Electron bridge for phone motion, touch, WebSocket, and Open Sound Control workflows.",
   "license": "MIT",
-  "author": "Yonatan Rozin",
+  "author": "Yonatan Rozin; enhancements by Joshua Zamora",
   "type": "commonjs",
   "main": "main/index.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "start": "electron ./main/index",
-    "build": "electron-builder build"
+    "start": "electron ./main/index.js",
+    "test": "node --test tests/*.test.js",
+    "check": "node --check main/index.js && node --check main/preload.js && node --check main/bridge-utils.js && node --check controller/controller.js",
+    "build": "npm run check && npm test && electron-builder build"
+  },
+  "dependencies": {
+    "node-osc": "^11.6.0",
+    "qrcode": "^1.5.4",
+    "selfsigned": "^5.5.0",
+    "ws": "^8.21.1"
   },
   "devDependencies": {
     "electron": "^41.3.0",
@@ -16,16 +27,26 @@
   },
   "build": {
     "productName": "OSC Bridge",
-    "appId": "com.yonatanrozin.osc_bridge",
-    "files": "main/**/*",
+    "appId": "com.joshmzamora.osc_bridge",
+    "files": [
+      "main/**/*",
+      "package.json"
+    ],
     "extraResources": [
       {
         "from": "sketch",
         "to": "sketch"
       },
       {
+        "from": "controller",
+        "to": "controller"
+      },
+      {
         "from": "receivers",
-        "to": "receivers"
+        "to": "receivers",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "directories": {
@@ -35,10 +56,8 @@
       "target": "nsis"
     },
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "category": "public.app-category.developer-tools"
     }
-  },
-  "dependencies": {
-    "node-osc": "^11.5.0"
   }
 }
