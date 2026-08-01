@@ -1,134 +1,162 @@
 # OSC Bridge
 
-__Currently in development - functionality NOT guaranteed!!__
+OSC Bridge is a standalone Electron app that connects browser-based desktop sketches, phones, and Open Sound Control software on the same local network.
 
-A simple program that runs static HTML/JavaScript files as full-screen desktop applications and enables OSC communication for new networking possibilities.
+Version 2 adds a built-in phone controller, secure QR pairing, motion and touch streaming, configurable OSC forwarding, diagnostics, recording, and automated tests. A separate phone app such as Zig Sim is no longer required for the standard motion-controller workflow.
 
-![](https://yonatanrozin.com/wp-content/uploads/2026/06/IMG_8374-1-2.gif)
+Original project by [Yonatan Rozin](https://yonatanrozin.com/project/osc-bridge/). Version 2 enhancements are maintained in this fork by Joshua Zamora.
 
-Read more about the project [here](https://yonatanrozin.com/project/osc-bridge/).
+## What it does
 
-## Installation
+- Receives UDP OSC on port `4242` and forwards messages into the active desktop sketch.
+- Hosts a local HTTPS phone controller on port `4244`.
+- Streams phone orientation, acceleration, rotation rate, touch, and buttons.
+- Converts phone events into consistent `/phone/<device-id>/...` OSC addresses.
+- Optionally forwards phone messages to another OSC program at `127.0.0.1:4243` by default.
+- Records all bridge traffic to newline-delimited JSON files.
+- Reloads the desktop sketch automatically when its files change.
 
-- Tested and functional on Windows 11
-- Functional on MacOS Sequoia - __Camera functionality currently NOT functional__
+## Install and run from source
 
-### Option 1 - download installer
+Requires Node.js 20 or newer.
 
-Tested on Windows 11, functional on Mac but needs testing
+```bash
+npm install
+npm start
+```
 
-- Download and install latest [release](https://github.com/yonatanrozin/OSC-Bridge/releases)
-  - Opening installed app for the first time may show security warning on Mac computers. After receiving warning, allow permission in "Privacy & Security" section of computer system preferences.
- 
-### Option 2 - build from source
+The desktop dashboard opens full screen. Press `Esc` or `Ctrl/Cmd + F` to leave full screen.
 
-Requires [Node.js](https://nodejs.org/en/download) installed
+## Connect a phone
 
-- Clone this repository or download and extract .zip file
-- In new terminal window, from repository folder:
-  - ```npm install```
-  - ```npm run build``` (takes 1-2 minutes)
-  - Find newly-built installer in ```/dist``` folder
-  - __This will replace your existing installer!__ See below for instructions on compiling multiple apps.
+1. Put the phone and computer on the same Wi-Fi network.
+2. Start OSC Bridge.
+3. Scan the QR code shown on the desktop dashboard.
+4. Your browser may show a one-time warning because the bridge creates a local self-signed certificate. Continue to the local site.
+5. Tap **Enable motion** on the phone and approve the sensor permission.
 
-#### Building multiple apps
+The pairing token changes every time the desktop app starts. A copied controller link from an older session will not reconnect.
 
-To build multiple apps (eg. to manage several concurrent projects), each app must be given a unique "product name":
+### Firewall note
 
-- Before running ```npm run build``` in the instructions above, update your ```package.json``` file:
-  - ```name```: set to something unique - must contain only lowercase numbers, letters and underscores
-  - ```build.productName```: enter the name you'd like to use for the appliaction
-  - ```build.appId```: set to something unique - convention is ```com.example.<name>```
+The operating system may ask whether OSC Bridge can accept local network connections. Allow private-network access so the phone can reach ports `4242` and `4244`.
 
-## Usage
+## Phone OSC addresses
 
-- Modify files in ```<app_contents>/sketch``` 
-  - See API notes below for sending/receiving OSC messages within your sketch
-- Launch osc_bridge app
-- Use ```ctrl-E``` to open sketch files folder in file browser for easy location
-  - __Editing these files while app is running will refresh the sketch!__
-- Use ```ctrl-F``` to toggle fullscreen
-- Use ```ctrl-R``` to refresh page
-- Use ```ctrl-I``` to display computer's local IP address. Use this IP address and port 4242 when sending OSC messages to this sketch.
+Each connected phone receives a short session ID. Messages use this prefix:
 
-## API
+```text
+/phone/<device-id>
+```
 
-__This API is only available within the OSC Bridge application context. It is NOT available within the web browser!__
+| Address | Arguments |
+| --- | --- |
+| `/phone/<id>/orientation` | `alpha, beta, gamma, absolute, screenAngle` |
+| `/phone/<id>/quaternion` | `x, y, z, w` |
+| `/phone/<id>/accel` | `x, y, z` |
+| `/phone/<id>/accel-gravity` | `x, y, z` |
+| `/phone/<id>/rotation-rate` | `alpha, beta, gamma` |
+| `/phone/<id>/touch` | `x, y, pressure, phase, pointerId` |
+| `/phone/<id>/button/a` | `pressed, value` |
+| `/phone/<id>/button/b` | `pressed, value` |
+| `/phone/<id>/status` | `event, detail` |
 
-- ```window.localIP``` - returns the computer's current local IP address. Send OSC messages to port 4242 with this IP address to interface with your sketch! 
-  - You can also get your local IP address by running the app and entering ```ctrl-I```.
+Touch coordinates are normalized from `0` to `1`. The phone's **Calibrate** button zeroes the current orientation before future values are sent.
 
-### Sending OSC
+## Desktop sketch API
 
-To send OSC messages from your sketch: ```OSC.send("<address>", <args>, "<IP_Addr>", <port>)```
-- ```<address>``` - a valid OSC message address, i.e. ```"/mousePosition"```
-- ```<args>``` - a string, number, boolean, or array of strings/numbers/bools
-  - Boolean arguments are converted to integers (0 or 1)
-- ```<IP_Addr>``` & ```<port>``` (optional) - destination IP address and port for the OSC message. Leave out for default ```"localhost"``` port 4243
+The API is injected only inside the Electron sketch window.
 
-### Receiving OSC
+### Receive OSC
 
-Sketch receives OSC messages on port __4242__.
+```js
+const stop = OSC.route('/phone/*/touch', (args, address, metadata) => {
+  const [x, y, pressure, phase] = args;
+  console.log({ x, y, pressure, phase, address, metadata });
+});
 
-Use ```OSC.route("<address>", <handler>)``` to create OSC message handlers
-- ```<address>``` - OSC address to route
-  - Use ```*``` as a single-level wildcard (e.g. ```/*/temperature``` will match addresses ```/device1/temperature```, ```/anything/temperature```, etc.)
-- ```<handler>``` - a callback function with up to 2 arguments: ```(vals, address)```
-  - ```vals``` - an array of arguments (numbers or strings)
-  - ```address``` - the full OSC message address, in case needed
+stop();
+```
 
-## Examples
+Patterns support:
 
-__The Zig Sim mobile app (which most of the examples below use) was recently updated, including changes to the message OSC addresses. Be sure you are using the latest version of the Zig Sim app. The etch-a-sketch example is currently not working following the update. Fix coming soon! Rest of examples are functional.__
+- `*` to receive every OSC address.
+- `*` inside a path to match one segment, such as `/phone/*/touch`.
+- `**` to match any remaining path depth, such as `/phone/**`.
 
-See sketch examples [here](https://github.com/yonatanrozin/OSC-Bridge/blob/main/examples)
+Use `OSC.once(pattern, callback)` for a one-time route.
 
-To try out an example sketch, copy the sketch files into the application sketch folder
-- Launch app and enter Ctrl-E (or cmd-E) to open the application sketch folder.
-- __Copy the example sketch files only - NOT the entire folder!__
+### Send OSC
 
-Example sketches are designed to work with free Zig Sim app on iOS and Android. _Zig Sim Pro uses different OSC addresses and will require adjustments to the sketch OSC routes._
-- Ensure smartphone and computer are on the same WiFi network
-- In Zig Sim "sensors" tab 
-  - Enable required hardware data streams
-  - See below for specific required sensors per example
-- Zig Sim "settings" tab
-  - Select ```other app``` destination, ```UDP``` protocol and ```OSC``` message format
-  - Enter computer's local IP address and port 4242
-  - Select frame rate (30 or 60 recommended)
-- Enter "start" tab to begin - smartphone must stay on with the Zig Sim app open!
+```js
+await OSC.send('/slider', 0.5);
+await OSC.send('/color', [255, 100, 40], '192.168.1.50', 7000);
+```
 
-### OSC Log (default sketch)
-- Displays all incoming OSC message addresses + arguments in an on-screen table
-- See headers at top for computer's IP address. Use this IP address and port 4242 to send OSC messages to the sketch (from Zig Sim or other source)
+When the destination is omitted, OSC Bridge uses the output host and port selected on the dashboard.
 
-### Etch-a-sketch
-- Enable Zig Sim "2D Touch", "Accel" and "Touch Radius" sensors
-- Touch phone screen to draw on the computer canvas. Press harder for thicker lines.
-- Shake the phone to clear the canvas!
+### Bridge controls
 
-### Fruit Ninja
-- Enable Zig Sim "2D Touch", "Gravity" and "Compass" sensors
-- Point phone at computer/monitor and tap phone screen to calibrate pointer
-- Slice fruit with the orientation sensor!
+```js
+const status = await Bridge.getStatus();
+await Bridge.startRecording();
+await Bridge.stopRecording();
+await Bridge.openSketchFolder();
+await Bridge.openRecordingsFolder();
+```
 
-### Jump!
-- Enable Zig Sim "accel" sensor
-- Place phone in pocket with upper edge facing UP
-- Jump to avoid the obstacles!
+Existing sketches using `window.localIP` and `window.openSketchDir()` remain supported.
 
-### Steering
-- Enable Zig Sim "gyroscope" and "gravity" sensors
-- Hold phone horizontally, top of phone facing left, with the touchscreen facing you
-- Steer left and right to stay on the winding road!
-- Tilt the phone towards/away from you to speed up and slow down.
+## Recording
 
-### ML5 Pinch
-- Does not use Zig Sim. Ensure computer has internet and camera access.
-- Pinch the on-screen slider with a thumb and index finger to move it!
-- Sketch will send OSC messages with the ```/slider``` address and slider position when moved.
-  - Edit line 53 of sketch.js to set OSC destination (default is ```localhost``` port ```4243```)
-    - i.e. ```OSC.send(`/slider`, pinch_location[0], "12,34,56,78", 7000);```
+Select **Start recording** on the dashboard or press `Ctrl/Cmd + Shift + R`.
+
+Recordings are saved as `.jsonl` files in:
+
+```text
+Documents/OSC Bridge Recordings
+```
+
+Each line contains a timestamp, OSC address, arguments, and source metadata. JSONL makes large recordings streamable without loading the entire file into memory.
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl/Cmd + F` | Toggle full screen |
+| `Esc` | Leave full screen |
+| `Ctrl/Cmd + E` | Open the live sketch folder |
+| `Ctrl/Cmd + Shift + R` | Start or stop recording |
+| `Ctrl/Cmd + R` | Reload the sketch through Electron's standard shortcut |
+
+## Use a custom sketch
+
+Press `Ctrl/Cmd + E` and replace the files in the opened `sketch` folder. The window reloads when a file changes.
+
+The examples in `examples/` can still receive ordinary UDP OSC from Zig Sim or other software. Version 2 also normalizes both the current array-shaped `node-osc` message format and the older object-shaped format.
+
+## Ports and environment variables
+
+| Purpose | Default | Override |
+| --- | ---: | --- |
+| UDP OSC input | `4242` | `OSC_BRIDGE_INPUT_PORT` |
+| HTTPS phone controller | `4244` | `OSC_BRIDGE_CONTROLLER_PORT` |
+| OSC output | `127.0.0.1:4243` | Desktop dashboard |
+
+## Test and build
+
+```bash
+npm run check
+npm test
+npm run build
+```
+
+Installers are written to `dist/` by electron-builder.
+
+## Protocol documentation
+
+See [`docs/PROTOCOL.md`](docs/PROTOCOL.md) for the phone WebSocket payloads, validation behavior, and OSC mapping.
 
 ## License
-This software is distributed under the MIT license. Feel free to use it but please do leave appropriate credit, especially in any online materials related to your project!
+
+Distributed under the MIT License. Preserve attribution to the original OSC Bridge project when publishing derivative work.
