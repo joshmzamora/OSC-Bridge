@@ -13,9 +13,28 @@
   </style>
 </head>
 <body>
-  <main><strong>Palm Cove Table Tennis</strong><span>Preparing the resort court…</span><div class="spinner"></div></main>
+  <main data-table-tennis-loader><strong>Palm Cove Table Tennis</strong><span>Preparing the resort court…</span><div class="spinner"></div></main>
   <script>
     (async () => {
+      const showLoadError = (error) => {
+        const message = String(error?.message || error || 'Unknown startup error');
+        document.head.innerHTML = '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Palm Cove Table Tennis · Load error</title>';
+        document.body.innerHTML = '';
+        const card = document.createElement('main');
+        const title = document.createElement('strong');
+        const detail = document.createElement('span');
+        title.textContent = 'Could not load the court';
+        detail.textContent = message;
+        card.append(title, detail);
+        document.body.append(card);
+      };
+
+      const runScript = (source, sourceName) => {
+        const script = document.createElement('script');
+        script.textContent = `${source}\n//# sourceURL=${sourceName}`;
+        document.body.append(script);
+      };
+
       try {
         const [html, css, core, game] = await Promise.all([
           Bridge.readTableTennisAsset('sketch/ping-pong.html'),
@@ -23,18 +42,37 @@
           Bridge.readTableTennisAsset('sketch/ping-pong-core.js'),
           Bridge.readTableTennisAsset('sketch/ping-pong.js'),
         ]);
-        const cssUrl = URL.createObjectURL(new Blob([css], { type: 'text/css' }));
-        const coreUrl = URL.createObjectURL(new Blob([core], { type: 'text/javascript' }));
-        const gameUrl = URL.createObjectURL(new Blob([game], { type: 'text/javascript' }));
-        const hydrated = html
-          .replace('href="ping-pong.css"', `href="${cssUrl}"`)
-          .replace('src="ping-pong-core.js"', `src="${coreUrl}"`)
-          .replace('src="ping-pong.js"', `src="${gameUrl}"`);
-        document.open();
-        document.write(hydrated);
-        document.close();
+
+        const parsed = new DOMParser().parseFromString(html, 'text/html');
+        if (!parsed.querySelector('#gameShell')) throw new Error('The packaged court markup is incomplete.');
+        parsed.querySelectorAll('script, link[rel="stylesheet"]').forEach((element) => element.remove());
+
+        const nextHead = document.createElement('head');
+        for (const child of parsed.head.children) nextHead.append(document.importNode(child, true));
+        const style = document.createElement('style');
+        style.dataset.tableTennisStyles = 'true';
+        style.textContent = css;
+        nextHead.append(style);
+
+        const nextBody = document.importNode(parsed.body, true);
+        document.documentElement.lang = parsed.documentElement.lang || 'en';
+        document.head.replaceWith(nextHead);
+        document.body.replaceWith(nextBody);
+
+        runScript(core, 'palm-cove-table-tennis-core.js');
+        runScript(game, 'palm-cove-table-tennis.js');
+
+        await new Promise((resolve, reject) => {
+          const deadline = performance.now() + 5000;
+          const check = () => {
+            if (globalThis.__TABLE_TENNIS_READY__) return resolve();
+            if (performance.now() > deadline) return reject(new Error('The court loaded, but the game did not finish starting.'));
+            requestAnimationFrame(check);
+          };
+          check();
+        });
       } catch (error) {
-        document.querySelector('main').innerHTML = `<strong>Could not load the court</strong><span>${String(error?.message || error)}</span>`;
+        showLoadError(error);
       }
     })();
   </script>
