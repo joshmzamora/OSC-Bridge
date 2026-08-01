@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0a0d12">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>OSC Bridge Controller</title>
+  <title>OSC Bridge Motion Racket</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">OSC Bridge</p>
-        <h1>Motion Controller</h1>
+        <h1>Motion Racket</h1>
       </div>
       <div class="connection" id="connection" data-state="connecting">
         <span class="dot"></span>
@@ -24,39 +24,39 @@
 
     <section class="setup-card" id="setupCard">
       <div>
-        <h2>Enable phone sensors</h2>
-        <p>Keep this page open while controlling the PC. Motion data stays on your local network.</p>
+        <h2>Enable racket tracking</h2>
+        <p>Hold the phone securely and keep this page open. Motion data stays on your local network.</p>
       </div>
       <button class="primary" id="enableMotion">Enable motion</button>
       <p class="small" id="permissionNote">On iPhone, Safari will ask for motion access.</p>
     </section>
 
-    <section class="telemetry" aria-label="Live telemetry">
+    <section class="telemetry" aria-label="Live racket telemetry">
       <div><span>Yaw</span><strong id="yaw">0°</strong></div>
       <div><span>Pitch</span><strong id="pitch">0°</strong></div>
       <div><span>Roll</span><strong id="roll">0°</strong></div>
-      <div><span>Rate</span><strong id="rateLabel">30 Hz</strong></div>
+      <div><span>Rate</span><strong id="rateLabel">60 Hz</strong></div>
     </section>
 
-    <section class="touchpad" id="touchpad" aria-label="Touch control area">
+    <section class="touchpad" id="touchpad" aria-label="Fallback racket position pad">
       <div class="crosshair" id="crosshair"></div>
       <div class="touch-copy">
-        <strong>Touchpad</strong>
-        <span>Drag anywhere</span>
+        <strong>Fallback racket pad</strong>
+        <span>Drag to position the racket</span>
       </div>
     </section>
 
     <section class="controls">
-      <button class="secondary" id="calibrate">Calibrate</button>
+      <button class="secondary" id="calibrate">Center racket</button>
       <label class="rate-control">
-        <span>Update rate</span>
+        <span>Tracking rate</span>
         <select id="rate">
-          <option value="30" selected>30 Hz</option>
-          <option value="60">60 Hz</option>
+          <option value="60" selected>60 Hz · Best for games</option>
+          <option value="30">30 Hz · Save battery</option>
         </select>
       </label>
-      <button class="round-button" data-button="a" aria-label="A button">A</button>
-      <button class="round-button" data-button="b" aria-label="B button">B</button>
+      <button class="round-button" data-button="a" aria-label="Serve or action button">A</button>
+      <button class="round-button" data-button="b" aria-label="Pause button">B</button>
     </section>
 
     <footer>
