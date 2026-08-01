@@ -1,0 +1,95 @@
+name: Finish ping pong integration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/finish-ping-pong.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Wire game into dashboard and release metadata
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          index = Path('sketch/index.html')
+          text = index.read_text()
+          old = "    .primary { border-color: #38bdf8; background: #38bdf8; color: #071018; }\n"
+          new = old + "    .game-button { border-color: #a855f7; background: linear-gradient(135deg, #22d3ee, #a855f7); color: #071018; }\n"
+          assert old in text, 'dashboard primary style not found'
+          text = text.replace(old, new, 1)
+
+          old = "        <article class=\"card actions\">\n          <button id=\"openSketch\">Open sketch folder</button>"
+          new = "        <article class=\"card actions\">\n          <button class=\"game-button\" id=\"playPingPong\">Play Ping Pong</button>\n          <button id=\"openSketch\">Open sketch folder</button>"
+          assert old in text, 'dashboard actions section not found'
+          text = text.replace(old, new, 1)
+
+          old = "    elements.openSketch.addEventListener('click', () => Bridge.openSketchFolder());\n"
+          new = "    elements.playPingPong.addEventListener('click', () => { location.href = 'ping-pong.html'; });\n" + old
+          assert old in text, 'dashboard event handlers not found'
+          index.write_text(text.replace(old, new, 1))
+
+          package = Path('package.json')
+          text = package.read_text()
+          text = text.replace('"version": "2.0.0"', '"version": "2.1.0"', 1)
+          text = text.replace(
+              'A standalone Electron bridge for phone motion, touch, WebSocket, and Open Sound Control workflows.',
+              'A standalone Electron bridge for phone motion, touch, OSC workflows, and phone-controlled games.'
+          )
+          old = 'node --check controller/controller.js'
+          new = old + ' && node --check sketch/ping-pong-core.js && node --check sketch/ping-pong.js'
+          assert old in text, 'package check script not found'
+          package.write_text(text.replace(old, new, 1))
+
+          readme = Path('README.md')
+          text = readme.read_text()
+          old = '- Reloads the desktop sketch automatically when its files change.\n'
+          new = old + '- Includes a built-in phone-controlled ping-pong game with AI and two-phone multiplayer.\n'
+          assert old in text, 'README feature list not found'
+          text = text.replace(old, new, 1)
+
+          marker = '## Phone OSC addresses\n'
+          section = '''## Play Ping Pong\n\nSelect **Play Ping Pong** from the desktop dashboard. The first connected phone controls Player 1; a second phone controls Player 2 when **2 Phones** mode is selected.\n\n- Tap **Enable motion** on the phone, then use **Calibrate** while holding it comfortably.\n- Tilt the phone to move the paddle. The game can use pitch, roll, or auto-detect the stronger axis.\n- Drag on the phone touchpad for direct paddle positioning. Touch temporarily overrides tilt.\n- Press phone button **A** to serve and **B** to pause. Keyboard controls are also available.\n- Choose Easy, Normal, or Hard AI, or switch to local two-phone multiplayer.\n- Matches play to 7 points and require a two-point lead.\n\n'''
+          assert marker in text, 'README phone address section not found'
+          readme.write_text(text.replace(marker, section + marker, 1))
+
+          changelog = Path('CHANGELOG.md')
+          text = changelog.read_text()
+          marker = '## 2.0.0\n'
+          section = '''## 2.1.0\n\n- Added a complete phone-controlled ping-pong game.\n- Added single-player AI with three difficulty levels.\n- Added two-phone local multiplayer, touch controls, keyboard fallback, scoring, rally tracking, sound, and visual effects.\n- Added tested reusable game logic for phone address parsing, tilt mapping, paddle physics, and win conditions.\n- Added a Play Ping Pong entry point to the desktop dashboard.\n\n'''
+          assert marker in text, '2.0.0 changelog section not found'
+          changelog.write_text(text.replace(marker, section + marker, 1))
+          PY
+
+      - name: Refresh dependency lock
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Validate game and application
+        run: |
+          npm ci
+          npm run check
+          npm test
+          npx electron-builder --dir --linux
+
+      - name: Commit completed integration
+        run: |
+          rm .github/workflows/finish-ping-pong.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "complete phone-controlled ping pong game"
+          git push origin HEAD:main
