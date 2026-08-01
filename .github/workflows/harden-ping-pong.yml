@@ -25,31 +25,18 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
+
           path = Path('sketch/ping-pong.js')
           text = path.read_text()
 
-          old = "  lastFrame: performance.now(),\n};"
-          new = "  lastFrame: performance.now(),\n  resumeState: 'playing',\n  pausedAt: 0,\n};"
-          assert old in text, 'game state tail not found'
-          text = text.replace(old, new, 1)
+          if "resumeState: 'playing'" not in text:
+              old = "  lastFrame: performance.now(),\n};"
+              new = "  lastFrame: performance.now(),\n  resumeState: 'playing',\n  pausedAt: 0,\n};"
+              assert old in text, 'game state tail not found'
+              text = text.replace(old, new, 1)
 
-          old = '''function togglePause() {
-            if (game.state === 'playing' || game.state === 'countdown') {
-              game.state = 'paused';
-              elements.overlayEyebrow.textContent = 'MATCH PAUSED';
-              elements.overlayTitle.textContent = 'Take a breather';
-              elements.overlayMessage.textContent = 'Press B, P, or Resume when you are ready.';
-              elements.startButton.textContent = 'Resume';
-              elements.matchState.textContent = 'Paused';
-              showOverlay();
-            } else if (game.state === 'paused') {
-              game.state = 'playing';
-              elements.matchState.textContent = 'Playing';
-              hideOverlay();
-            }
-          }
-          '''.replace('          ', '')
-          new = '''function togglePause() {
+          pause = '''function togglePause() {
             if (game.state === 'playing' || game.state === 'countdown') {
               game.resumeState = game.state;
               game.pausedAt = performance.now();
@@ -73,17 +60,16 @@ jobs:
             }
           }
           '''.replace('          ', '')
-          assert old in text, 'pause handler not found'
-          text = text.replace(old, new, 1)
+          text, count = re.subn(
+              r"function togglePause\(\) \{.*?\n\}\n\n(?=function scorePoint)",
+              pause + '\n',
+              text,
+              count=1,
+              flags=re.S,
+          )
+          assert count == 1, 'pause handler not found'
 
-          old = '''  if (parsed.event === 'orientation') {
-            if (performance.now() < phone.touchUntil) return;
-            const [, beta, gamma] = args;
-            const mapped = normalizedTilt(beta, gamma, elements.tiltAxis.value);
-            phone.axis = mapped.axis;
-            phone.y = mapped.value;
-          '''
-          new = '''  if (parsed.event === 'orientation') {
+          orientation = '''  if (parsed.event === 'orientation') {
             if (performance.now() < phone.touchUntil) return;
             const [, beta, gamma] = args;
             const selectedAxis = elements.tiltAxis.value;
@@ -91,14 +77,22 @@ jobs:
             const mapped = normalizedTilt(beta, gamma, preferredAxis);
             phone.axis = mapped.axis;
             phone.y = mapped.value;
+          } else if (parsed.event === 'touch') {
           '''
-          assert old in text, 'orientation mapping not found'
-          text = text.replace(old, new, 1)
+          text, count = re.subn(
+              r"  if \(parsed\.event === 'orientation'\) \{.*?\n  \} else if \(parsed\.event === 'touch'\) \{\n",
+              orientation,
+              text,
+              count=1,
+              flags=re.S,
+          )
+          assert count == 1, 'orientation mapping not found'
 
-          old = "  renderPhones();\n}\n\nfunction targetFromPhone"
-          new = "}\n\nfunction targetFromPhone"
-          assert old in text, 'high-frequency phone rerender not found'
-          text = text.replace(old, new, 1)
+          text = text.replace(
+              "  renderPhones();\n}\n\nfunction targetFromPhone",
+              "}\n\nfunction targetFromPhone",
+              1,
+          )
 
           old = '''  updateCountdown(now);
             if (game.state !== 'paused' && game.state !== 'gameover') {
