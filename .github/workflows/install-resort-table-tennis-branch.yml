@@ -1,0 +1,129 @@
+name: Install verified resort table tennis branch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/install-resort-table-tennis-branch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  install-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: agent/resort-table-tennis
+          fetch-depth: 0
+
+      - name: Extract clean-room implementation
+        run: |
+          cat .table-tennis-upload/part-* > /tmp/resort-table-tennis.b64
+          base64 --decode /tmp/resort-table-tennis.b64 > /tmp/resort-table-tennis.tar.gz
+          echo "a821c2947560fcc232909c75e533900e2567c99ad2974577f23bc1688827c314  /tmp/resort-table-tennis.tar.gz" | sha256sum --check
+          tar -xzf /tmp/resort-table-tennis.tar.gz -C .
+          rm -rf .table-tennis-upload
+          rm -f .github/workflows/install-resort-table-tennis.yml
+          rm -f .github/workflows/diagnose-resort-table-tennis.yml
+          rm -f resort-table-tennis-runs.json
+
+      - name: Finalize release metadata and documentation
+        run: |
+          npm version 2.2.0 --no-git-tag-version
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          changelog = Path('CHANGELOG.md')
+          text = changelog.read_text()
+          text = text.replace('## Unreleased', '## 2.2.0', 1)
+          changelog.write_text(text)
+
+          readme = Path('README.md')
+          text = readme.read_text()
+          replacement = '''## Play Palm Cove Table Tennis
+
+Select **Play Table Tennis** from the desktop dashboard for an original motion-controlled table-tennis game set at the fictional Palm Cove resort.
+
+- **Solo:** choose an opponent, five CPU levels, a match length, motion assistance, sensitivity, smoothing, handedness, sound, and accessibility options.
+- **Two players:** connect two real phones; the first controls Player 1 and the second controls Player 2. Each phone calibrates independently.
+- Hold the phone like a racket. Position it to track the paddle, then swing naturally for forehands and backhands. Swing speed, racket angle, timing, and rotation affect power, direction, topspin, backspin, and sidespin.
+- Phone buttons and the touch surface provide serving, pausing, and fallback control. Mouse and keyboard controls are available when motion sensors are unavailable.
+- Matches include legal serves, lets, alternating service, win-by-two scoring, rallies, rematches, and best-of match presets.
+
+See [`docs/TABLE_TENNIS.md`](docs/TABLE_TENNIS.md) for controls, calibration, physics, accessibility, multiplayer behavior, and troubleshooting.
+
+'''
+          pattern = r'## Play Ping Pong\n.*?(?=## Phone OSC addresses\n)'
+          text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit('README ping-pong section was not found')
+          text = text.replace('Includes a built-in phone-controlled ping-pong game with AI and two-phone multiplayer.', 'Includes Palm Cove Table Tennis, an original motion-controlled game with configurable solo play and two-phone local multiplayer.')
+          readme.write_text(text)
+          PY
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Validate JavaScript
+        run: npm run check
+
+      - name: Run unit and integration tests
+        run: npm test
+
+      - name: Run Electron renderer end-to-end verification
+        run: xvfb-run -a npm run e2e:table-tennis
+
+      - name: Package Linux application smoke test
+        run: npx electron-builder --dir --linux
+
+      - name: Record verification
+        run: |
+          cat > docs/TABLE_TENNIS_VERIFICATION.md <<EOF
+          # Table Tennis Verification
+
+          Palm Cove Table Tennis was verified in GitHub Actions before this branch commit was created.
+
+          - Locked dependency installation: passed
+          - JavaScript syntax validation: passed
+          - Unit and deterministic physics integration tests: passed
+          - Electron renderer end-to-end smoke test: passed
+          - Linux Electron package smoke build: passed
+          - Workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          - Commit source: ${GITHUB_SHA}
+
+          The automated two-controller test uses virtual OSC phone streams. Final physical-device acceptance still requires playing with the intended computer, one iPhone for solo mode, and two phones for local multiplayer.
+          EOF
+
+      - name: Commit verified branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "build polished motion-controlled table tennis"
+          git push origin HEAD:agent/resort-table-tennis
+
+  remove-helper:
+    if: always()
+    needs: install-and-verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Remove temporary installer
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/install-resort-table-tennis-branch.yml
+          git add -A
+          git diff --cached --quiet || git commit -m "remove temporary table tennis installer"
+          git push origin HEAD:main
