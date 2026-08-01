@@ -1,90 +1,21 @@
-name: Finalize v2 code
+name: CI
 
 on:
+  push:
+    branches: [main, "agent/**"]
   pull_request:
 
-permissions:
-  contents: write
-
 jobs:
-  finalize:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - name: Apply release hardening
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          main = Path('main/index.js')
-          text = main.read_text()
-
-          old = "function buildAppleCertificateProfile(certificatePem, profileUUID, certificateUUID) {\n  const certificateBase64"
-          new = "function buildAppleCertificateProfile(certificatePem, profileUUID, certificateUUID) {\n  const identifierSuffix = certificateUUID.toLowerCase();\n  const certificateBase64"
-          assert old in text, 'certificate profile function was not found'
-          text = text.replace(old, new, 1)
-
-          old = '<string>com.joshmzamora.oscbridge.root</string>'
-          new = '<string>com.joshmzamora.oscbridge.root.${identifierSuffix}</string>'
-          assert old in text, 'root payload identifier was not found'
-          text = text.replace(old, new, 1)
-
-          old = '<string>com.joshmzamora.oscbridge.profile</string>'
-          new = '<string>com.joshmzamora.oscbridge.profile.${identifierSuffix}</string>'
-          assert old in text, 'profile payload identifier was not found'
-          text = text.replace(old, new, 1)
-
-          old = 'response.end(JSON.stringify({ ok: true, secureControllerUrl }));'
-          new = 'response.end(JSON.stringify({ ok: true }));'
-          assert old in text, 'setup health response was not found'
-          main.write_text(text.replace(old, new, 1))
-
-          controller = Path('controller/controller.js')
-          text = controller.read_text()
-          old = (
-              "  socket.addEventListener('close', () => {\n"
-              "    setConnection('offline', 'Reconnecting');\n"
-              "    reconnectTimer = setTimeout(connect, reconnectDelay);\n"
-              "    reconnectDelay = Math.min(reconnectDelay * 1.7, 8000);\n"
-              "  });"
-          )
-          new = (
-              "  socket.addEventListener('close', (event) => {\n"
-              "    if (event.code === 1008) {\n"
-              "      setConnection('offline', 'Link expired');\n"
-              "      permissionNote.textContent = 'This pairing link expired. Scan the current QR code on the computer.';\n"
-              "      return;\n"
-              "    }\n"
-              "    setConnection('offline', 'Reconnecting');\n"
-              "    reconnectTimer = setTimeout(connect, reconnectDelay);\n"
-              "    reconnectDelay = Math.min(reconnectDelay * 1.7, 8000);\n"
-              "  });"
-          )
-          assert old in text, 'controller reconnect handler was not found'
-          controller.write_text(text.replace(old, new, 1))
-
-          changelog = Path('CHANGELOG.md')
-          text = changelog.read_text()
-          old = '- Added QR pairing with a per-launch session token.\n'
-          new = old + '- Added guided iPhone certificate installation with persistent per-computer trust.\n'
-          assert old in text, 'changelog pairing entry was not found'
-          text = text.replace(old, new, 1)
-          old = '- Added automated tests and GitHub Actions CI.\n'
-          new = '- Added automated tests, packaging validation, and cross-platform release builds.\n'
-          assert old in text, 'changelog CI entry was not found'
-          changelog.write_text(text.replace(old, new, 1))
-          PY
-      - name: Generate dependency lock
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Commit code and dependency lock
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add main/index.js controller/controller.js CHANGELOG.md package-lock.json
-          git diff --cached --quiet || git commit -m "finalize v2 code and dependencies"
-          git push origin HEAD:${{ github.head_ref }}
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - name: Package application smoke test
+        run: npx electron-builder --dir --linux
