@@ -3,85 +3,40 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>OSC Bridge Ping Pong</title>
-  <link rel="stylesheet" href="ping-pong.css">
+  <meta name="color-scheme" content="light">
+  <title>Loading Palm Cove Table Tennis…</title>
+  <style>
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,sans-serif;background:#78d9e8;color:#083a54}
+    body{display:grid;place-items:center;background:linear-gradient(#79d9ea 0 55%,#f7d88a 55%)}
+    main{text-align:center;padding:28px;border-radius:24px;background:rgba(255,255,255,.86);box-shadow:0 20px 70px rgba(7,66,84,.22)}
+    strong{display:block;font-size:1.35rem;margin-bottom:8px}.spinner{width:34px;height:34px;margin:18px auto 0;border:4px solid rgba(8,58,84,.18);border-top-color:#087f8c;border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+  </style>
 </head>
 <body>
-  <div class="game-shell">
-    <header class="topbar">
-      <button class="ghost" id="backButton" type="button">← Dashboard</button>
-      <div class="title-block">
-        <span>OSC Bridge Arcade</span>
-        <h1>Ping Pong</h1>
-      </div>
-      <div class="connection" id="connectionBadge" data-state="waiting">
-        <i></i><span id="connectionText">Waiting for phone</span>
-      </div>
-    </header>
-
-    <main class="game-layout">
-      <section class="arena-card">
-        <canvas id="gameCanvas" width="1280" height="720" aria-label="Ping pong game"></canvas>
-        <div class="scoreboard" aria-live="polite">
-          <div><span id="leftName">YOU</span><strong id="leftScore">0</strong></div>
-          <p><span id="rallyLabel">RALLY</span><b id="rallyCount">0</b></p>
-          <div class="right"><span id="rightName">CPU</span><strong id="rightScore">0</strong></div>
-        </div>
-        <div class="overlay" id="overlay">
-          <div class="overlay-card">
-            <span class="eyebrow" id="overlayEyebrow">PHONE-CONTROLLED ARCADE</span>
-            <h2 id="overlayTitle">Ready to rally?</h2>
-            <p id="overlayMessage">Connect your phone, tap Enable motion, then tilt to move your paddle. The phone touchpad and keyboard also work.</p>
-            <div class="control-grid">
-              <div><kbd>Phone tilt</kbd><span>Move paddle</span></div>
-              <div><kbd>A / Space</kbd><span>Serve</span></div>
-              <div><kbd>B / P</kbd><span>Pause</span></div>
-            </div>
-            <button class="primary" id="startButton" type="button">Start match</button>
-          </div>
-        </div>
-      </section>
-
-      <aside class="side-panel">
-        <section class="panel-card">
-          <div class="panel-heading"><span>Match</span><strong id="matchState">Ready</strong></div>
-          <div class="segmented" id="modePicker" role="group" aria-label="Game mode">
-            <button class="active" data-mode="ai" type="button">Vs CPU</button>
-            <button data-mode="two-player" type="button">2 Phones</button>
-          </div>
-          <label class="field">Difficulty
-            <select id="difficulty">
-              <option value="easy">Easy</option>
-              <option value="normal" selected>Normal</option>
-              <option value="hard">Hard</option>
-            </select>
-          </label>
-          <label class="field">Tilt axis
-            <select id="tiltAxis">
-              <option value="auto" selected>Auto detect</option>
-              <option value="pitch">Pitch</option>
-              <option value="roll">Roll</option>
-            </select>
-          </label>
-          <label class="toggle"><input id="soundToggle" type="checkbox" checked><span>Sound effects</span></label>
-        </section>
-
-        <section class="panel-card phones-card">
-          <div class="panel-heading"><span>Controllers</span><strong id="phoneCount">0 connected</strong></div>
-          <div id="phoneList" class="phone-list">
-            <p class="empty">Scan the QR code on the dashboard to connect a phone.</p>
-          </div>
-        </section>
-
-        <section class="panel-card compact">
-          <p><strong>Tip:</strong> Calibrate while holding your phone comfortably. Touching the phone pad temporarily overrides tilt for precise control.</p>
-          <button id="resetButton" type="button">New match</button>
-        </section>
-      </aside>
-    </main>
-  </div>
-
-  <script src="ping-pong-core.js"></script>
-  <script src="ping-pong.js"></script>
+  <main><strong>Palm Cove Table Tennis</strong><span>Preparing the resort court…</span><div class="spinner"></div></main>
+  <script>
+    (async () => {
+      try {
+        const [html, css, core, game] = await Promise.all([
+          Bridge.readTableTennisAsset('sketch/ping-pong.html'),
+          Bridge.readTableTennisAsset('sketch/ping-pong.css'),
+          Bridge.readTableTennisAsset('sketch/ping-pong-core.js'),
+          Bridge.readTableTennisAsset('sketch/ping-pong.js'),
+        ]);
+        const cssUrl = URL.createObjectURL(new Blob([css], { type: 'text/css' }));
+        const coreUrl = URL.createObjectURL(new Blob([core], { type: 'text/javascript' }));
+        const gameUrl = URL.createObjectURL(new Blob([game], { type: 'text/javascript' }));
+        const hydrated = html
+          .replace('href="ping-pong.css"', `href="${cssUrl}"`)
+          .replace('src="ping-pong-core.js"', `src="${coreUrl}"`)
+          .replace('src="ping-pong.js"', `src="${gameUrl}"`);
+        document.open();
+        document.write(hydrated);
+        document.close();
+      } catch (error) {
+        document.querySelector('main').innerHTML = `<strong>Could not load the court</strong><span>${String(error?.message || error)}</span>`;
+      }
+    })();
+  </script>
 </body>
 </html>
