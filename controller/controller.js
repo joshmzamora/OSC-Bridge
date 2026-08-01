@@ -61,7 +61,12 @@ function connect() {
     }
   });
 
-  socket.addEventListener('close', () => {
+  socket.addEventListener('close', (event) => {
+    if (event.code === 1008) {
+      setConnection('offline', 'Link expired');
+      permissionNote.textContent = 'This pairing link expired. Scan the current QR code on the computer.';
+      return;
+    }
     setConnection('offline', 'Reconnecting');
     reconnectTimer = setTimeout(connect, reconnectDelay);
     reconnectDelay = Math.min(reconnectDelay * 1.7, 8000);

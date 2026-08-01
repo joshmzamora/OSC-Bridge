@@ -293,6 +293,7 @@ async function ensureCertificates() {
 }
 
 function buildAppleCertificateProfile(certificatePem, profileUUID, certificateUUID) {
+  const identifierSuffix = certificateUUID.toLowerCase();
   const certificateBase64 = certificatePem
     .replace(/-----BEGIN CERTIFICATE-----/g, '')
     .replace(/-----END CERTIFICATE-----/g, '')
@@ -314,7 +315,7 @@ function buildAppleCertificateProfile(certificatePem, profileUUID, certificateUU
       <key>PayloadDisplayName</key>
       <string>OSC Bridge Local Root</string>
       <key>PayloadIdentifier</key>
-      <string>com.joshmzamora.oscbridge.root</string>
+      <string>com.joshmzamora.oscbridge.root.${identifierSuffix}</string>
       <key>PayloadType</key>
       <string>com.apple.security.root</string>
       <key>PayloadUUID</key>
@@ -328,7 +329,7 @@ function buildAppleCertificateProfile(certificatePem, profileUUID, certificateUU
   <key>PayloadDisplayName</key>
   <string>OSC Bridge Certificate</string>
   <key>PayloadIdentifier</key>
-  <string>com.joshmzamora.oscbridge.profile</string>
+  <string>com.joshmzamora.oscbridge.profile.${identifierSuffix}</string>
   <key>PayloadOrganization</key>
   <string>OSC Bridge</string>
   <key>PayloadRemovalDisallowed</key>
@@ -413,7 +414,7 @@ async function serveSetup(request, response) {
   const { requestUrl, valid } = validSessionUrl(request, 'http');
   if (requestUrl.pathname === '/health') {
     response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-    response.end(JSON.stringify({ ok: true, secureControllerUrl }));
+    response.end(JSON.stringify({ ok: true }));
     return;
   }
   if (!valid) {
