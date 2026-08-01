@@ -12,7 +12,10 @@
   "scripts": {
     "start": "electron ./main/index.js",
     "test": "node --test tests/*.test.js",
-    "check": "node --check main/index.js && node --check main/preload.js && node --check main/bridge-utils.js && node --check controller/controller.js && node --check sketch/ping-pong-core.js && node --check sketch/ping-pong.js",
+    "check": "node --check main/index.js && node --check main/preload.js && node --check main/bridge-utils.js && node --check controller/controller.js && node --check sketch/ping-pong-core.js && node --check scripts/e2e-table-tennis.js && node --check scripts/extract-table-tennis.js",
+    "e2e:table-tennis": "electron --no-sandbox scripts/e2e-table-tennis.js",
+    "verify:table-tennis": "npm run check && npm test",
+    "extract:table-tennis": "node scripts/extract-table-tennis.js",
     "build": "npm run check && npm test && electron-builder build"
   },
   "dependencies": {
@@ -40,6 +43,10 @@
       {
         "from": "controller",
         "to": "controller"
+      },
+      {
+        "from": ".table-tennis-upload",
+        "to": "table-tennis-bundle"
       }
     ],
     "directories": {
