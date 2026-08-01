@@ -16,6 +16,7 @@ Original project by [Yonatan Rozin](https://yonatanrozin.com/project/osc-bridge/
 - Optionally forwards phone messages to another OSC program at `127.0.0.1:4243` by default.
 - Records all bridge traffic to newline-delimited JSON files.
 - Reloads the desktop sketch automatically when its files change.
+- Includes a built-in phone-controlled ping-pong game with AI and two-phone multiplayer.
 
 ## Install and run from source
 
@@ -48,6 +49,17 @@ The setup page also links directly to the secure controller. Browsers that alrea
 ### Firewall note
 
 The operating system may ask whether OSC Bridge can accept local network connections. Allow private-network access so the phone can reach ports `4244` and `4245`. Allow UDP port `4242` when receiving OSC from other devices.
+
+## Play Ping Pong
+
+Select **Play Ping Pong** from the desktop dashboard. The first connected phone controls Player 1; a second phone controls Player 2 when **2 Phones** mode is selected.
+
+- Tap **Enable motion** on the phone, then use **Calibrate** while holding it comfortably.
+- Tilt the phone to move the paddle. The game can use pitch, roll, or auto-detect the stronger axis.
+- Drag on the phone touchpad for direct paddle positioning. Touch temporarily overrides tilt.
+- Press phone button **A** to serve and **B** to pause. Keyboard controls are also available.
+- Choose Easy, Normal, or Hard AI, or switch to local two-phone multiplayer.
+- Matches play to 7 points and require a two-point lead.
 
 ## Phone OSC addresses
 

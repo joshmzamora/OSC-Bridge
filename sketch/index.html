@@ -32,6 +32,7 @@
     button { min-height: 42px; padding: 0 15px; border: 1px solid #344052; border-radius: 12px; background: #18202b; color: #f5f7fa; font-weight: 750; }
     button:hover { border-color: #4b5a6d; }
     .primary { border-color: #38bdf8; background: #38bdf8; color: #071018; }
+    .game-button { border-color: #a855f7; background: linear-gradient(135deg, #22d3ee, #a855f7); color: #071018; }
     .danger { border-color: #f87171; background: rgba(248,113,113,.12); color: #fecaca; }
     .actions { padding: 18px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
     .actions .spacer { flex: 1; }
@@ -86,6 +87,7 @@
         </article>
 
         <article class="card actions">
+          <button class="game-button" id="playPingPong">Play Ping Pong</button>
           <button id="openSketch">Open sketch folder</button>
           <button id="openRecordings">Open recordings</button>
           <span class="spacer"></span>
@@ -201,6 +203,7 @@
       elements.copyUrl.textContent = 'Copied';
       setTimeout(() => { elements.copyUrl.textContent = 'Copy'; }, 1200);
     });
+    elements.playPingPong.addEventListener('click', () => { location.href = 'ping-pong.html'; });
     elements.openSketch.addEventListener('click', () => Bridge.openSketchFolder());
     elements.openRecordings.addEventListener('click', () => Bridge.openRecordingsFolder());
     elements.recordButton.addEventListener('click', async () => {
