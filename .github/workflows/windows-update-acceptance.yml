@@ -5,13 +5,16 @@ on:
     branches: [agent/automatic-updates]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   replace-installed-version:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: agent/automatic-updates
+          fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -60,9 +63,10 @@ jobs:
             Where-Object { $_.DisplayName -eq 'OSC Bridge' }
           if (@($entries).Count -ne 1) { throw "Expected one OSC Bridge installation after update, found $(@($entries).Count)" }
           if ($entries.DisplayVersion -ne '2.3.0') { throw "Expected 2.3.0 after replacement, found $($entries.DisplayVersion)" }
-          if (-not (Test-Path $entries.DisplayIcon.Split(',')[0].Trim('"'))) { throw 'Updated application executable was not found' }
+          $displayIcon = [string]$entries.DisplayIcon
+          $executable = $displayIcon.Split(',')[0].Trim('"')
+          if (-not (Test-Path $executable)) { throw "Updated application executable was not found at $executable" }
       - name: Uninstall test application
-        if: always()
         shell: pwsh
         run: |
           $entry = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue |
@@ -71,5 +75,24 @@ jobs:
             Select-Object -First 1
           if ($entry -and $entry.UninstallString) {
             $uninstaller = $entry.UninstallString.Trim('"')
-            Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait
+            $process = Start-Process -FilePath $uninstaller -ArgumentList '/S' -PassThru -Wait
+            if ($process.ExitCode -notin @(0, 1641, 3010)) { throw "Uninstaller exited with $($process.ExitCode)" }
           }
+      - name: Record successful acceptance and remove temporary workflow
+        shell: pwsh
+        run: |
+          @{
+            platform = 'windows-latest'
+            previousVersion = '2.2.1'
+            replacementVersion = '2.3.0'
+            installationCountAfterReplacement = 1
+            result = 'success'
+            verifiedAt = (Get-Date).ToUniversalTime().ToString('o')
+          } | ConvertTo-Json | Set-Content windows-update-acceptance.json
+          Remove-Item .github/workflows/windows-update-acceptance.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add windows-update-acceptance.json .github/workflows/windows-update-acceptance.yml
+          git commit -m 'verify Windows installer replacement'
+          git pull --rebase origin agent/automatic-updates
+          git push origin HEAD:agent/automatic-updates
