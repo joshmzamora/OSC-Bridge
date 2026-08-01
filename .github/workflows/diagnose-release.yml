@@ -1,0 +1,34 @@
+name: Diagnose release workflows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/diagnose-release.yml
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+      - name: Record recent workflow state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --limit 30 \
+            --json databaseId,workflowName,status,conclusion,headBranch,headSha,event,createdAt,updatedAt,url \
+            > release-diagnose.json
+          rm .github/workflows/diagnose-release.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "record release workflow diagnostics"
+          git push origin HEAD:main
