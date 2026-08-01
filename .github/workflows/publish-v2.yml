@@ -1,0 +1,31 @@
+name: Publish OSC Bridge v2.0.0
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Create v2.0.0 tag
+        env:
+          RELEASE_SHA: 06cd3856b5fe8bad12fa4f95637fbce3805f8960
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git rev-parse "refs/tags/v2.0.0" >/dev/null 2>&1; then
+            git tag -a v2.0.0 "$RELEASE_SHA" -m "OSC Bridge v2.0.0"
+            git push origin refs/tags/v2.0.0
+          fi
+      - name: Launch installer release workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run release.yml --ref v2.0.0
