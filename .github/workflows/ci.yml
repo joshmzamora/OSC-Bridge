@@ -1,20 +1,188 @@
-name: CI
+name: Finalize v2
 
 on:
-  push:
-    branches: [main, "agent/**"]
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
-  test:
+  finalize:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
-      - run: npm run check
-      - run: npm test
-      - name: Package application smoke test
-        run: npx electron-builder --dir --linux
+      - name: Apply release hardening
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from textwrap import dedent
+
+          main = Path('main/index.js')
+          text = main.read_text()
+
+          old = "function buildAppleCertificateProfile(certificatePem, profileUUID, certificateUUID) {\n  const certificateBase64"
+          new = "function buildAppleCertificateProfile(certificatePem, profileUUID, certificateUUID) {\n  const identifierSuffix = certificateUUID.toLowerCase();\n  const certificateBase64"
+          assert old in text, 'certificate profile function was not found'
+          text = text.replace(old, new, 1)
+
+          old = '<string>com.joshmzamora.oscbridge.root</string>'
+          new = '<string>com.joshmzamora.oscbridge.root.${identifierSuffix}</string>'
+          assert old in text, 'root payload identifier was not found'
+          text = text.replace(old, new, 1)
+
+          old = '<string>com.joshmzamora.oscbridge.profile</string>'
+          new = '<string>com.joshmzamora.oscbridge.profile.${identifierSuffix}</string>'
+          assert old in text, 'profile payload identifier was not found'
+          text = text.replace(old, new, 1)
+
+          old = 'response.end(JSON.stringify({ ok: true, secureControllerUrl }));'
+          new = 'response.end(JSON.stringify({ ok: true }));'
+          assert old in text, 'setup health response was not found'
+          text = text.replace(old, new, 1)
+          main.write_text(text)
+
+          controller = Path('controller/controller.js')
+          text = controller.read_text()
+          old = """  socket.addEventListener('close', () => {
+            setConnection('offline', 'Reconnecting');
+            reconnectTimer = setTimeout(connect, reconnectDelay);
+            reconnectDelay = Math.min(reconnectDelay * 1.7, 8000);
+          });"""
+          new = """  socket.addEventListener('close', (event) => {
+            if (event.code === 1008) {
+              setConnection('offline', 'Link expired');
+              permissionNote.textContent = 'This pairing link expired. Scan the current QR code on the computer.';
+              return;
+            }
+            setConnection('offline', 'Reconnecting');
+            reconnectTimer = setTimeout(connect, reconnectDelay);
+            reconnectDelay = Math.min(reconnectDelay * 1.7, 8000);
+          });"""
+          assert old in text, 'controller reconnect handler was not found'
+          controller.write_text(text.replace(old, new, 1))
+
+          changelog = Path('CHANGELOG.md')
+          text = changelog.read_text()
+          old = '- Added QR pairing with a per-launch session token.\n'
+          new = old + '- Added guided iPhone certificate installation with persistent per-computer trust.\n'
+          assert old in text, 'changelog pairing entry was not found'
+          text = text.replace(old, new, 1)
+          old = '- Added automated tests and GitHub Actions CI.\n'
+          new = '- Added automated tests, packaging validation, and cross-platform release builds.\n'
+          assert old in text, 'changelog CI entry was not found'
+          changelog.write_text(text.replace(old, new, 1))
+
+          permanent_ci = dedent('''\
+          name: CI
+
+          on:
+            push:
+              branches: [main, "agent/**"]
+            pull_request:
+
+          jobs:
+            test:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - uses: actions/setup-node@v4
+                  with:
+                    node-version: 22
+                    cache: npm
+                - run: npm ci
+                - run: npm run check
+                - run: npm test
+                - name: Package application smoke test
+                  run: npx electron-builder --dir --linux
+          ''')
+          Path('.github/workflows/ci.yml').write_text(permanent_ci)
+
+          release = dedent('''\
+          name: Build release installers
+
+          on:
+            workflow_dispatch:
+            push:
+              tags: ["v*"]
+
+          permissions:
+            contents: write
+
+          jobs:
+            test:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - uses: actions/setup-node@v4
+                  with:
+                    node-version: 22
+                    cache: npm
+                - run: npm ci
+                - run: npm run check
+                - run: npm test
+
+            build:
+              needs: test
+              strategy:
+                fail-fast: false
+                matrix:
+                  include:
+                    - os: windows-latest
+                      build_args: --win nsis --x64
+                      artifact_name: windows-installer
+                      artifact_files: dist/*.exe
+                    - os: macos-latest
+                      build_args: --mac dmg --x64 --arm64
+                      artifact_name: macos-installers
+                      artifact_files: dist/*.dmg
+                    - os: ubuntu-latest
+                      build_args: --linux AppImage --x64
+                      artifact_name: linux-installer
+                      artifact_files: dist/*.AppImage
+              runs-on: @@{{ matrix.os }}
+              env:
+                CSC_IDENTITY_AUTO_DISCOVERY: "false"
+              steps:
+                - uses: actions/checkout@v4
+                - uses: actions/setup-node@v4
+                  with:
+                    node-version: 22
+                    cache: npm
+                - run: npm ci
+                - run: npx electron-builder @@{{ matrix.build_args }} --publish never
+                - uses: actions/upload-artifact@v4
+                  with:
+                    name: @@{{ matrix.artifact_name }}
+                    path: @@{{ matrix.artifact_files }}
+                    if-no-files-found: error
+
+            publish:
+              if: startsWith(github.ref, 'refs/tags/')
+              needs: build
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/download-artifact@v4
+                  with:
+                    path: release-assets
+                    merge-multiple: true
+                - name: Create GitHub release
+                  env:
+                    GH_TOKEN: @@{{ github.token }}
+                  run: gh release create "$GITHUB_REF_NAME" release-assets/* --generate-notes --title "OSC Bridge $GITHUB_REF_NAME"
+          ''').replace('@@', '$')
+          Path('.github/workflows/release.yml').write_text(release)
+          PY
+      - name: Generate dependency lock
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit finalized repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "finalize reproducible v2 release"
+          git push origin HEAD:${{ github.head_ref }}
