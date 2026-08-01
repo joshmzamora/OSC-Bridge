@@ -40,13 +40,6 @@
       {
         "from": "controller",
         "to": "controller"
-      },
-      {
-        "from": "receivers",
-        "to": "receivers",
-        "filter": [
-          "**/*"
-        ]
       }
     ],
     "directories": {
