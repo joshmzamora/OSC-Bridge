@@ -48,21 +48,25 @@ jobs:
 
           controller = Path('controller/controller.js')
           text = controller.read_text()
-          old = """  socket.addEventListener('close', () => {
-            setConnection('offline', 'Reconnecting');
-            reconnectTimer = setTimeout(connect, reconnectDelay);
-            reconnectDelay = Math.min(reconnectDelay * 1.7, 8000);
-          });"""
-          new = """  socket.addEventListener('close', (event) => {
-            if (event.code === 1008) {
-              setConnection('offline', 'Link expired');
-              permissionNote.textContent = 'This pairing link expired. Scan the current QR code on the computer.';
-              return;
-            }
-            setConnection('offline', 'Reconnecting');
-            reconnectTimer = setTimeout(connect, reconnectDelay);
-            reconnectDelay = Math.min(reconnectDelay * 1.7, 8000);
-          });"""
+          old = (
+              "  socket.addEventListener('close', () => {\n"
+              "    setConnection('offline', 'Reconnecting');\n"
+              "    reconnectTimer = setTimeout(connect, reconnectDelay);\n"
+              "    reconnectDelay = Math.min(reconnectDelay * 1.7, 8000);\n"
+              "  });"
+          )
+          new = (
+              "  socket.addEventListener('close', (event) => {\n"
+              "    if (event.code === 1008) {\n"
+              "      setConnection('offline', 'Link expired');\n"
+              "      permissionNote.textContent = 'This pairing link expired. Scan the current QR code on the computer.';\n"
+              "      return;\n"
+              "    }\n"
+              "    setConnection('offline', 'Reconnecting');\n"
+              "    reconnectTimer = setTimeout(connect, reconnectDelay);\n"
+              "    reconnectDelay = Math.min(reconnectDelay * 1.7, 8000);\n"
+              "  });"
+          )
           assert old in text, 'controller reconnect handler was not found'
           controller.write_text(text.replace(old, new, 1))
 
