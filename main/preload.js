@@ -110,6 +110,14 @@ contextBridge.exposeInMainWorld('Bridge', {
 contextBridge.exposeInMainWorld('localIP', localIP);
 contextBridge.exposeInMainWorld('openSketchDir', () => ipcRenderer.invoke('bridge:open-sketch'));
 
+window.addEventListener('DOMContentLoaded', () => {
+  const gameButton = document.getElementById('playPingPong');
+  if (gameButton) {
+    gameButton.textContent = 'Play Table Tennis';
+    gameButton.setAttribute('aria-label', 'Play Palm Cove Table Tennis');
+  }
+});
+
 window.addEventListener('beforeunload', () => {
   for (const listener of routeListeners) window.removeEventListener('OSC', listener);
   routeListeners.clear();
