@@ -34,52 +34,58 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force previous | Out-Null
           gh release download v2.2.1 --repo $env:GITHUB_REPOSITORY --pattern 'OSC.Bridge.Setup.2.2.1.exe' --dir previous
-      - name: Install old version
+      - name: Install and identify old version
         shell: pwsh
         run: |
           $old = Resolve-Path 'previous/OSC.Bridge.Setup.2.2.1.exe'
           $process = Start-Process -FilePath $old -ArgumentList '/S' -PassThru -Wait
           if ($process.ExitCode -notin @(0, 1641, 3010)) { throw "Old installer exited with $($process.ExitCode)" }
-          Start-Sleep -Seconds 3
+          Start-Sleep -Seconds 4
           Get-Process | Where-Object { $_.ProcessName -like 'OSC Bridge*' -or $_.ProcessName -eq 'osc_bridge' } | Stop-Process -Force -ErrorAction SilentlyContinue
-      - name: Verify old installation identity
-        shell: pwsh
-        run: |
-          $entries = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue |
-            ForEach-Object { Get-ItemProperty $_.PSPath } |
-            Where-Object { $_.DisplayName -eq 'OSC Bridge' }
-          if (@($entries).Count -ne 1) { throw "Expected one OSC Bridge installation, found $(@($entries).Count)" }
-          if ($entries.DisplayVersion -ne '2.2.1') { throw "Expected 2.2.1, found $($entries.DisplayVersion)" }
+
+          $programs = Join-Path $env:LOCALAPPDATA 'Programs'
+          $executables = @(Get-ChildItem $programs -Filter 'OSC Bridge.exe' -File -Recurse -ErrorAction SilentlyContinue)
+          if ($executables.Count -ne 1) {
+            Get-ChildItem $programs -File -Recurse -ErrorAction SilentlyContinue | Select-Object FullName
+            throw "Expected one installed OSC Bridge executable, found $($executables.Count)"
+          }
+          $executable = $executables[0].FullName
+          $asarPath = Join-Path (Split-Path $executable) 'resources\app.asar'
+          if (-not (Test-Path $asarPath)) { throw "Installed app.asar was not found at $asarPath" }
+          $version = node -e "const asar=require('@electron/asar'); const pkg=JSON.parse(asar.extractFile(process.argv[1],'package.json').toString('utf8')); process.stdout.write(pkg.version);" $asarPath
+          if ($version.Trim() -ne '2.2.1') { throw "Expected installed version 2.2.1, found $version" }
+          "OSC_INSTALL_PATH=$executable" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Install new version over old version
         shell: pwsh
         run: |
           $new = Resolve-Path 'dist/OSC.Bridge.Setup.2.3.0.exe'
           $process = Start-Process -FilePath $new -ArgumentList '/S' -PassThru -Wait
           if ($process.ExitCode -notin @(0, 1641, 3010)) { throw "New installer exited with $($process.ExitCode)" }
-          Start-Sleep -Seconds 3
-      - name: Verify replacement and preserved single install
+          Start-Sleep -Seconds 4
+      - name: Verify same-path replacement and one installed copy
         shell: pwsh
         run: |
-          $entries = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue |
-            ForEach-Object { Get-ItemProperty $_.PSPath } |
-            Where-Object { $_.DisplayName -eq 'OSC Bridge' }
-          if (@($entries).Count -ne 1) { throw "Expected one OSC Bridge installation after update, found $(@($entries).Count)" }
-          if ($entries.DisplayVersion -ne '2.3.0') { throw "Expected 2.3.0 after replacement, found $($entries.DisplayVersion)" }
-          $displayIcon = [string]$entries.DisplayIcon
-          $executable = $displayIcon.Split(',')[0].Trim('"')
-          if (-not (Test-Path $executable)) { throw "Updated application executable was not found at $executable" }
+          $programs = Join-Path $env:LOCALAPPDATA 'Programs'
+          $executables = @(Get-ChildItem $programs -Filter 'OSC Bridge.exe' -File -Recurse -ErrorAction SilentlyContinue)
+          if ($executables.Count -ne 1) {
+            $executables | Select-Object FullName
+            throw "Expected one OSC Bridge executable after replacement, found $($executables.Count)"
+          }
+          $executable = $executables[0].FullName
+          if ([System.IO.Path]::GetFullPath($executable) -ne [System.IO.Path]::GetFullPath($env:OSC_INSTALL_PATH)) {
+            throw "Update changed installation path from $env:OSC_INSTALL_PATH to $executable"
+          }
+          $asarPath = Join-Path (Split-Path $executable) 'resources\app.asar'
+          $version = node -e "const asar=require('@electron/asar'); const pkg=JSON.parse(asar.extractFile(process.argv[1],'package.json').toString('utf8')); process.stdout.write(pkg.version);" $asarPath
+          if ($version.Trim() -ne '2.3.0') { throw "Expected installed version 2.3.0 after replacement, found $version" }
       - name: Uninstall test application
         shell: pwsh
         run: |
-          $entry = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue |
-            ForEach-Object { Get-ItemProperty $_.PSPath } |
-            Where-Object { $_.DisplayName -eq 'OSC Bridge' } |
-            Select-Object -First 1
-          if ($entry -and $entry.UninstallString) {
-            $uninstaller = $entry.UninstallString.Trim('"')
-            $process = Start-Process -FilePath $uninstaller -ArgumentList '/S' -PassThru -Wait
-            if ($process.ExitCode -notin @(0, 1641, 3010)) { throw "Uninstaller exited with $($process.ExitCode)" }
-          }
+          $installDirectory = Split-Path $env:OSC_INSTALL_PATH
+          $uninstaller = Join-Path $installDirectory 'Uninstall OSC Bridge.exe'
+          if (-not (Test-Path $uninstaller)) { throw "Uninstaller was not found at $uninstaller" }
+          $process = Start-Process -FilePath $uninstaller -ArgumentList '/S' -PassThru -Wait
+          if ($process.ExitCode -notin @(0, 1641, 3010)) { throw "Uninstaller exited with $($process.ExitCode)" }
       - name: Record successful acceptance and remove temporary workflow
         shell: pwsh
         run: |
@@ -87,6 +93,7 @@ jobs:
             platform = 'windows-latest'
             previousVersion = '2.2.1'
             replacementVersion = '2.3.0'
+            sameInstallationPath = $true
             installationCountAfterReplacement = 1
             result = 'success'
             verifiedAt = (Get-Date).ToUniversalTime().ToString('o')
