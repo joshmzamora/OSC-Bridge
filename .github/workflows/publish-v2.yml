@@ -1,4 +1,4 @@
-name: Verify OSC Bridge v2.0.0 release
+name: Publish verified OSC Bridge v2.0.0 assets
 
 on:
   push:
@@ -8,98 +8,70 @@ on:
 
 permissions:
   contents: write
-  actions: write
+  actions: read
 
 jobs:
-  verify:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Find or launch installer workflow
-        id: release_run
+      - name: Download verified installer artifacts
+        uses: actions/download-artifact@v8
+        with:
+          run-id: 30688433288
+          github-token: ${{ github.token }}
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create or repair GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_SHA: 06cd3856b5fe8bad12fa4f95637fbce3805f8960
         run: |
-          RUN_ID=$(gh run list \
-            --repo "$GITHUB_REPOSITORY" \
-            --workflow release.yml \
-            --limit 30 \
-            --json databaseId,event,headSha,createdAt \
-            --jq '[.[] | select(.event == "workflow_dispatch" and .headSha == env.RELEASE_SHA)][0].databaseId // empty')
-
-          if [ -z "$RUN_ID" ]; then
-            gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref v2.0.0
-            for attempt in $(seq 1 12); do
-              sleep 5
-              RUN_ID=$(gh run list \
-                --repo "$GITHUB_REPOSITORY" \
-                --workflow release.yml \
-                --limit 30 \
-                --json databaseId,event,headSha,createdAt \
-                --jq '[.[] | select(.event == "workflow_dispatch" and .headSha == env.RELEASE_SHA)][0].databaseId // empty')
-              [ -n "$RUN_ID" ] && break
-            done
+          if gh release view v2.0.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload v2.0.0 release-assets/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create v2.0.0 release-assets/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --generate-notes \
+              --title "OSC Bridge v2.0.0"
           fi
 
-          if [ -z "$RUN_ID" ]; then
-            echo "Could not locate the installer workflow run." >&2
-            exit 1
-          fi
-
-          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          echo "Installer workflow run: $RUN_ID"
-
-      - name: Wait for installers and release
+      - name: Record verified release result
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ steps.release_run.outputs.run_id }}
+          INSTALLER_RUN_ID: 30688433288
         run: |
-          set +e
-          gh run watch "$RUN_ID" --repo "$GITHUB_REPOSITORY" --exit-status
-          echo "watch_exit_code=$?" >> "$GITHUB_ENV"
-          exit 0
-
-      - name: Record release result
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ steps.release_run.outputs.run_id }}
-        run: |
-          gh run view "$RUN_ID" \
+          gh run view "$INSTALLER_RUN_ID" \
             --repo "$GITHUB_REPOSITORY" \
             --json databaseId,displayTitle,event,headBranch,headSha,status,conclusion,url,workflowName,jobs \
             > /tmp/run.json
 
-          if gh release view v2.0.0 \
+          gh release view v2.0.0 \
             --repo "$GITHUB_REPOSITORY" \
             --json name,tagName,isDraft,isPrerelease,publishedAt,url,assets \
-            > /tmp/release.json 2>/dev/null; then
-            RELEASE_EXISTS=true
-          else
-            echo 'null' > /tmp/release.json
-            RELEASE_EXISTS=false
-          fi
+            > /tmp/release.json
+
+          ALL_BUILDS_SUCCESSFUL=$(jq '[.jobs[] | select(.name | startswith("build (")) | .conclusion == "success"] | length == 3 and all' /tmp/run.json)
 
           jq -n \
             --arg checkedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --argjson releaseExists "$RELEASE_EXISTS" \
+            --argjson allInstallerBuildsSuccessful "$ALL_BUILDS_SUCCESSFUL" \
             --slurpfile run /tmp/run.json \
             --slurpfile release /tmp/release.json \
-            '{checkedAt: $checkedAt, releaseExists: $releaseExists, run: $run[0], release: $release[0]}' \
+            '{checkedAt: $checkedAt, allInstallerBuildsSuccessful: $allInstallerBuildsSuccessful, installerRun: $run[0], release: $release[0]}' \
             > release-status.json
+
+          test "$(jq -r '.allInstallerBuildsSuccessful' release-status.json)" = "true"
+          test "$(jq -r '.release.isDraft' release-status.json)" = "false"
+          test "$(jq -r '.release.assets | length >= 4' release-status.json)" = "true"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add release-status.json
-          git commit -m "record v2.0.0 release status"
+          git commit -m "record successful v2.0.0 release"
           git pull --rebase origin main
           git push origin HEAD:main
-
-      - name: Require successful published release
-        run: |
-          test "$(jq -r '.run.conclusion' release-status.json)" = "success"
-          test "$(jq -r '.releaseExists' release-status.json)" = "true"
-          test "$(jq -r '.release.isDraft' release-status.json)" = "false"
