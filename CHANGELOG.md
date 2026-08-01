@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.2.0
 
 - Replaced the basic side-view Pong prototype with Palm Cove Table Tennis, a complete original clean-room motion-controlled table-tennis game.
 - Added configurable solo play with four original opponents and five CPU difficulty levels.
