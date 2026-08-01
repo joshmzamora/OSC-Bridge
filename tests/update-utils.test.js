@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const {
   compareVersions,
   isNewerVersion,
@@ -81,4 +83,15 @@ test('normalizeRelease ignores unsafe, old, draft, and prerelease releases', () 
   assert.equal(normalizeRelease({ ...base, prerelease: true }, '2.2.1'), null);
   assert.equal(normalizeRelease({ ...base, assets: [{ ...base.assets[0], name: '../malware.exe' }] }, '2.2.1'), null);
   assert.equal(normalizeRelease({ ...base, assets: [{ ...base.assets[0], size: 1000 }] }, '2.2.1'), null);
+});
+
+test('package configuration keeps one stable replaceable Windows installation', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  assert.equal(packageJson.main, 'main/bootstrap.js');
+  assert.equal(packageJson.build.appId, 'com.joshmzamora.osc_bridge');
+  assert.equal(packageJson.build.nsis.artifactName, 'OSC.Bridge.Setup.${version}.${ext}');
+  assert.equal(packageJson.build.nsis.oneClick, true);
+  assert.equal(packageJson.build.nsis.perMachine, false);
+  assert.equal(packageJson.build.nsis.deleteAppDataOnUninstall, false);
+  assert.equal(packageJson.build.nsis.runAfterFinish, false);
 });
