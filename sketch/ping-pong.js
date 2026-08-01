@@ -32,6 +32,8 @@ const game = {
   right: { x: WORLD.width - PADDLE.inset, y: WORLD.height / 2, targetY: WORLD.height / 2, velocity: 0 },
   ball: { x: WORLD.width / 2, y: WORLD.height / 2, vx: 0, vy: 0, trail: [] },
   lastFrame: performance.now(),
+  resumeState: 'playing',
+  pausedAt: 0,
 };
 
 let audioContext;
@@ -108,6 +110,8 @@ function hideOverlay() { elements.overlay.classList.add('hidden'); }
 
 function togglePause() {
   if (game.state === 'playing' || game.state === 'countdown') {
+    game.resumeState = game.state;
+    game.pausedAt = performance.now();
     game.state = 'paused';
     elements.overlayEyebrow.textContent = 'MATCH PAUSED';
     elements.overlayTitle.textContent = 'Take a breather';
@@ -116,8 +120,14 @@ function togglePause() {
     elements.matchState.textContent = 'Paused';
     showOverlay();
   } else if (game.state === 'paused') {
-    game.state = 'playing';
-    elements.matchState.textContent = 'Playing';
+    if (game.resumeState === 'countdown') {
+      game.countdownStarted += performance.now() - game.pausedAt;
+      game.state = 'countdown';
+      elements.matchState.textContent = 'Serve';
+    } else {
+      game.state = 'playing';
+      elements.matchState.textContent = 'Playing';
+    }
     hideOverlay();
   }
 }
@@ -204,12 +214,14 @@ function handlePhoneMessage(args, address) {
   game.phones.set(parsed.deviceId, phone);
 
   if (parsed.event === 'orientation') {
-    if (performance.now() < phone.touchUntil) return;
-    const [, beta, gamma] = args;
-    const mapped = normalizedTilt(beta, gamma, elements.tiltAxis.value);
-    phone.axis = mapped.axis;
-    phone.y = mapped.value;
-  } else if (parsed.event === 'touch') {
+  if (performance.now() < phone.touchUntil) return;
+  const [, beta, gamma] = args;
+  const selectedAxis = elements.tiltAxis.value;
+  const preferredAxis = selectedAxis === 'auto' ? phone.axis : selectedAxis;
+  const mapped = normalizedTilt(beta, gamma, preferredAxis);
+  phone.axis = mapped.axis;
+  phone.y = mapped.value;
+} else if (parsed.event === 'touch') {
     const [, y, , phase] = args;
     if (phase !== 'end' && phase !== 'cancel') {
       phone.y = clamp(y, 0, 1);
@@ -221,7 +233,6 @@ function handlePhoneMessage(args, address) {
   } else if (parsed.event === 'button/b' && Number(args[0]) === 1) {
     togglePause();
   }
-  renderPhones();
 }
 
 function targetFromPhone(index) {
@@ -454,9 +465,11 @@ function frame(now) {
   const dt = Math.min(0.032, Math.max(0, (now - game.lastFrame) / 1000));
   game.lastFrame = now;
   updateCountdown(now);
-  if (game.state !== 'paused' && game.state !== 'gameover') {
-    updatePaddles(dt);
-    updateBall(dt);
+  if (game.state !== 'paused') {
+    if (game.state !== 'gameover') {
+      updatePaddles(dt);
+      updateBall(dt);
+    }
     updateParticles(dt);
   }
   render();
