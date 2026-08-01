@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0a0d12">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>OSC Bridge Controller</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">OSC Bridge</p>
+        <h1>Motion Controller</h1>
+      </div>
+      <div class="connection" id="connection" data-state="connecting">
+        <span class="dot"></span>
+        <span id="connectionText">Connecting</span>
+      </div>
+    </header>
+
+    <section class="setup-card" id="setupCard">
+      <div>
+        <h2>Enable phone sensors</h2>
+        <p>Keep this page open while controlling the PC. Motion data stays on your local network.</p>
+      </div>
+      <button class="primary" id="enableMotion">Enable motion</button>
+      <p class="small" id="permissionNote">On iPhone, Safari will ask for motion access.</p>
+    </section>
+
+    <section class="telemetry" aria-label="Live telemetry">
+      <div><span>Yaw</span><strong id="yaw">0°</strong></div>
+      <div><span>Pitch</span><strong id="pitch">0°</strong></div>
+      <div><span>Roll</span><strong id="roll">0°</strong></div>
+      <div><span>Rate</span><strong id="rateLabel">30 Hz</strong></div>
+    </section>
+
+    <section class="touchpad" id="touchpad" aria-label="Touch control area">
+      <div class="crosshair" id="crosshair"></div>
+      <div class="touch-copy">
+        <strong>Touchpad</strong>
+        <span>Drag anywhere</span>
+      </div>
+    </section>
+
+    <section class="controls">
+      <button class="secondary" id="calibrate">Calibrate</button>
+      <label class="rate-control">
+        <span>Update rate</span>
+        <select id="rate">
+          <option value="30" selected>30 Hz</option>
+          <option value="60">60 Hz</option>
+        </select>
+      </label>
+      <button class="round-button" data-button="a" aria-label="A button">A</button>
+      <button class="round-button" data-button="b" aria-label="B button">B</button>
+    </section>
+
+    <footer>
+      <span id="deviceLabel">Waiting for bridge</span>
+      <button class="text-button" id="rename">Rename</button>
+    </footer>
+  </main>
+  <script src="controller.js"></script>
+</body>
+</html>
