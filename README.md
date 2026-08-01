@@ -28,6 +28,12 @@ npm start
 
 The desktop dashboard opens full screen. Press `Esc` or `Ctrl/Cmd + F` to leave full screen.
 
+## Automatic Windows updates
+
+Starting with v2.3.0, installed Windows builds check the latest stable GitHub release after launch and every six hours. A newer installer downloads in the background, is validated against GitHub metadata, and then offers **Restart and install**. The update replaces the existing OSC Bridge installation while preserving settings, recordings, and locally generated iPhone certificate files.
+
+Versions older than v2.3.0 require one final manual installation of v2.3.0 before automatic updates become available. macOS and Linux updates remain manual. See [docs/AUTO_UPDATES.md](docs/AUTO_UPDATES.md) for implementation and troubleshooting details.
+
 ## Connect an iPhone
 
 Safari only exposes motion sensors to a trusted secure page, so OSC Bridge creates a local certificate authority and gives the iPhone a guided installation page. The root certificate remains the same when the computer's local IP address changes, so this normally happens only once per computer.

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.3.0
+
+- Added automatic update checks for installed Windows builds using the public GitHub Releases feed.
+- Added verified background downloads with exact file-size checks and SHA-256 verification when GitHub publishes a digest.
+- Added a Restart and install flow that silently replaces the existing per-user installation and relaunches OSC Bridge.
+- Preserved OSC settings, recordings, and locally generated iPhone certificate data across updates.
+- Added pending-update recovery, retry behavior, old-download cleanup, release filtering, safe installer-name validation, and update-disable support.
+- Made the NSIS application identity and one-install replacement behavior explicit.
+- Added unit tests and a real Windows acceptance test that installed v2.2.1, replaced it with v2.3.0 at the same path, and verified only one installed copy remained.
+
 ## 2.2.1
 
 - Fixed the Palm Cove startup overlay remaining above a running match in packaged Windows builds.
