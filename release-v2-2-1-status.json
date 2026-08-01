@@ -1,0 +1,207 @@
+{
+  "runs": [
+    {
+      "conclusion": "",
+      "databaseId": 30710478723,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "e2de1903f1199d6da6a179aca132346bc7f92130",
+      "status": "in_progress",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30710478723",
+      "workflowName": "CI"
+    },
+    {
+      "conclusion": "",
+      "databaseId": 30710478715,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "e2de1903f1199d6da6a179aca132346bc7f92130",
+      "status": "in_progress",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30710478715",
+      "workflowName": "Check v2.2.1 release"
+    },
+    {
+      "conclusion": "",
+      "databaseId": 30710446271,
+      "event": "workflow_dispatch",
+      "headBranch": "v2.2.1",
+      "headSha": "1eb8b41ff95c0b50227d5eda8fcbe0a688ae8b5e",
+      "status": "in_progress",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30710446271",
+      "workflowName": "Build release installers"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 30710431266,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "a79ebee4864a4458ce543850550da057ef848462",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30710431266",
+      "workflowName": "Publish OSC Bridge v2.2.1"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 30710431253,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "a79ebee4864a4458ce543850550da057ef848462",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30710431253",
+      "workflowName": "CI"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 30710398157,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "c4ac17525df9f855c1db5226cf4f5b573f1283ee",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30710398157",
+      "workflowName": "CI"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 30710364797,
+      "event": "pull_request",
+      "headBranch": "fix/table-tennis-loader",
+      "headSha": "56e02c71c1dab27ccc6d3a60e0e4f41a6b095b44",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30710364797",
+      "workflowName": "CI"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 30708244612,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "15b3e794a2c7304571c44c362b7fd84324654497",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30708244612",
+      "workflowName": "CI"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 30708237219,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "5903ce661bb62e716eb85d9310edf3d809e3277a",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30708237219",
+      "workflowName": "CI"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 30708225751,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "e491c46e857cbe9e651cfff75b7f23200a5dca36",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30708225751",
+      "workflowName": "CI"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 30708210250,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "e57f75c0195cbb189567558a9c3492a1be53d11e",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30708210250",
+      "workflowName": "CI"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 30708114953,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "130291058a2dbf1ded43baa4f0adce5617558f4d",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30708114953",
+      "workflowName": "Diagnose v2.2.0 release again"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 30708114939,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "130291058a2dbf1ded43baa4f0adce5617558f4d",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30708114939",
+      "workflowName": "CI"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 30708074302,
+      "event": "workflow_dispatch",
+      "headBranch": "v2.2.0",
+      "headSha": "4169933b356b7e3a582ad176e03f3c286bf06c29",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30708074302",
+      "workflowName": "Build release installers"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 30708070181,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "0c41bf3b24767ded577ccc3f7cfaa01a83544924",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30708070181",
+      "workflowName": "CI"
+    },
+    {
+      "conclusion": "failure",
+      "databaseId": 30708070176,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "0c41bf3b24767ded577ccc3f7cfaa01a83544924",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30708070176",
+      "workflowName": "Dispatch v2.2.0 installers"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 30708043341,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "3db1b22b100bfad2096627b2b7c00e996bc1e137",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30708043341",
+      "workflowName": "CI"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 30708043313,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "3db1b22b100bfad2096627b2b7c00e996bc1e137",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30708043313",
+      "workflowName": "Diagnose v2.2.0 release"
+    },
+    {
+      "conclusion": "failure",
+      "databaseId": 30707975276,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "cc58a51e66ca3dca0266f540146936e7508b5ab1",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30707975276",
+      "workflowName": "Verify Palm Cove Table Tennis v2.2.0 release"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 30707975263,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "cc58a51e66ca3dca0266f540146936e7508b5ab1",
+      "status": "completed",
+      "url": "https://github.com/joshmzamora/OSC-Bridge/actions/runs/30707975263",
+      "workflowName": "CI"
+    }
+  ],
+  "release": {
+    "error": "Command failed: gh release view v2.2.1 --repo joshmzamora/OSC-Bridge --json tagName,name,isDraft,isPrerelease,url,assets\nrelease not found\n"
+  }
+}
