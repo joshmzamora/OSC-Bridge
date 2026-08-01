@@ -16,3 +16,5 @@ jobs:
       - run: npm install
       - run: npm run check
       - run: npm test
+      - name: Package application smoke test
+        run: npx electron-builder --dir --linux
