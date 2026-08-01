@@ -1,0 +1,75 @@
+name: Windows update acceptance
+
+on:
+  push:
+    branches: [agent/automatic-updates]
+
+permissions:
+  contents: read
+
+jobs:
+  replace-installed-version:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build updater-enabled test version
+        shell: pwsh
+        run: |
+          npm version 2.3.0 --no-git-tag-version
+          npx electron-builder --win nsis --x64 --publish never
+      - name: Download currently released installer
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force previous | Out-Null
+          gh release download v2.2.1 --repo $env:GITHUB_REPOSITORY --pattern 'OSC.Bridge.Setup.2.2.1.exe' --dir previous
+      - name: Install old version
+        shell: pwsh
+        run: |
+          $old = Resolve-Path 'previous/OSC.Bridge.Setup.2.2.1.exe'
+          $process = Start-Process -FilePath $old -ArgumentList '/S' -PassThru -Wait
+          if ($process.ExitCode -notin @(0, 1641, 3010)) { throw "Old installer exited with $($process.ExitCode)" }
+          Start-Sleep -Seconds 3
+          Get-Process | Where-Object { $_.ProcessName -like 'OSC Bridge*' -or $_.ProcessName -eq 'osc_bridge' } | Stop-Process -Force -ErrorAction SilentlyContinue
+      - name: Verify old installation identity
+        shell: pwsh
+        run: |
+          $entries = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue |
+            ForEach-Object { Get-ItemProperty $_.PSPath } |
+            Where-Object { $_.DisplayName -eq 'OSC Bridge' }
+          if (@($entries).Count -ne 1) { throw "Expected one OSC Bridge installation, found $(@($entries).Count)" }
+          if ($entries.DisplayVersion -ne '2.2.1') { throw "Expected 2.2.1, found $($entries.DisplayVersion)" }
+      - name: Install new version over old version
+        shell: pwsh
+        run: |
+          $new = Resolve-Path 'dist/OSC.Bridge.Setup.2.3.0.exe'
+          $process = Start-Process -FilePath $new -ArgumentList '/S' -PassThru -Wait
+          if ($process.ExitCode -notin @(0, 1641, 3010)) { throw "New installer exited with $($process.ExitCode)" }
+          Start-Sleep -Seconds 3
+      - name: Verify replacement and preserved single install
+        shell: pwsh
+        run: |
+          $entries = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue |
+            ForEach-Object { Get-ItemProperty $_.PSPath } |
+            Where-Object { $_.DisplayName -eq 'OSC Bridge' }
+          if (@($entries).Count -ne 1) { throw "Expected one OSC Bridge installation after update, found $(@($entries).Count)" }
+          if ($entries.DisplayVersion -ne '2.3.0') { throw "Expected 2.3.0 after replacement, found $($entries.DisplayVersion)" }
+          if (-not (Test-Path $entries.DisplayIcon.Split(',')[0].Trim('"'))) { throw 'Updated application executable was not found' }
+      - name: Uninstall test application
+        if: always()
+        shell: pwsh
+        run: |
+          $entry = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue |
+            ForEach-Object { Get-ItemProperty $_.PSPath } |
+            Where-Object { $_.DisplayName -eq 'OSC Bridge' } |
+            Select-Object -First 1
+          if ($entry -and $entry.UninstallString) {
+            $uninstaller = $entry.UninstallString.Trim('"')
+            Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait
+          }
