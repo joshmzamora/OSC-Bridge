@@ -162,6 +162,10 @@ npm run build
 
 Installers are written to `dist/` by electron-builder.
 
+## Release installers
+
+Pushing a version tag such as `v2.0.0` runs the release workflow for Windows, macOS, and Linux. After all builds succeed, the workflow creates a GitHub release and attaches the generated installers. The same installer build can be run manually from the repository's **Actions** tab without publishing a release.
+
 ## Protocol documentation
 
 See [`docs/PROTOCOL.md`](docs/PROTOCOL.md) for the phone WebSocket payloads, validation behavior, and OSC mapping.
