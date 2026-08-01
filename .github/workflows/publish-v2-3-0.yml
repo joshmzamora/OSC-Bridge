@@ -1,0 +1,68 @@
+name: Publish OSC Bridge v2.3.0
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/publish-v2-3-0.yml]
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  prepare-and-dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Prepare updater-enabled release
+        run: |
+          npm version 2.3.0 --no-git-tag-version
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const changelogPath = 'CHANGELOG.md';
+          const changelog = fs.readFileSync(changelogPath, 'utf8');
+          const entry = `# Changelog\n\n## 2.3.0\n\n- Added automatic update checks for installed Windows builds using the public GitHub Releases feed.\n- Added verified background downloads with exact file-size checks and SHA-256 verification when GitHub publishes a digest.\n- Added a Restart and install flow that silently replaces the existing per-user installation and relaunches OSC Bridge.\n- Preserved OSC settings, recordings, and locally generated iPhone certificate data across updates.\n- Added pending-update recovery, retry behavior, old-download cleanup, release filtering, safe installer-name validation, and update-disable support.\n- Made the NSIS application identity and one-install replacement behavior explicit.\n- Added unit tests and a real Windows acceptance test that installed v2.2.1, replaced it with v2.3.0 at the same path, and verified only one installed copy remained.\n\n`;
+          if (!changelog.startsWith('# Changelog\n')) throw new Error('Unexpected changelog format');
+          fs.writeFileSync(changelogPath, entry + changelog.slice('# Changelog\n\n'.length));
+
+          const readmePath = 'README.md';
+          let readme = fs.readFileSync(readmePath, 'utf8');
+          if (!readme.includes('## Automatic Windows updates')) {
+            const marker = '## Connect an iPhone\n';
+            const section = `## Automatic Windows updates\n\nStarting with v2.3.0, installed Windows builds check the latest stable GitHub release after launch and every six hours. A newer installer downloads in the background, is validated against GitHub metadata, and then offers **Restart and install**. The update replaces the existing OSC Bridge installation while preserving settings, recordings, and locally generated iPhone certificate files.\n\nVersions older than v2.3.0 require one final manual installation of v2.3.0 before automatic updates become available. macOS and Linux updates remain manual. See [docs/AUTO_UPDATES.md](docs/AUTO_UPDATES.md) for implementation and troubleshooting details.\n\n`;
+            if (!readme.includes(marker)) throw new Error('README insertion marker not found');
+            readme = readme.replace(marker, section + marker);
+            fs.writeFileSync(readmePath, readme);
+          }
+          NODE
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - name: Verify Electron renderer
+        run: xvfb-run -a npm run e2e:table-tennis
+      - name: Verify package construction
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx electron-builder --linux dir --x64 --publish never
+      - name: Commit and tag v2.3.0
+        run: |
+          rm .github/workflows/publish-v2-3-0.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json CHANGELOG.md README.md .github/workflows/publish-v2-3-0.yml
+          git commit -m "release OSC Bridge v2.3.0"
+          git tag -a v2.3.0 -m "OSC Bridge v2.3.0"
+          git push origin HEAD:main
+          git push origin v2.3.0
+      - name: Dispatch installer release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref v2.3.0
