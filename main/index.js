@@ -8,6 +8,7 @@ const selfsigned = require('selfsigned');
 const crypto = require('crypto');
 const fs = require('fs');
 const fsp = require('fs/promises');
+const http = require('http');
 const https = require('https');
 const os = require('os');
 const path = require('path');
@@ -20,17 +21,23 @@ const {
 
 const OSC_INPUT_PORT = Number(process.env.OSC_BRIDGE_INPUT_PORT) || 4242;
 const CONTROLLER_PORT = Number(process.env.OSC_BRIDGE_CONTROLLER_PORT) || 4244;
+const SETUP_PORT = Number(process.env.OSC_BRIDGE_SETUP_PORT) || 4245;
 const MAX_WS_MESSAGE_BYTES = 64 * 1024;
+const DAY = 24 * 60 * 60 * 1000;
 
 let mainWindow;
 let oscServer;
 let secureServer;
+let setupServer;
 let webSocketServer;
 let sketchWatcher;
 let sessionToken;
 let localIP = '127.0.0.1';
-let controllerUrl = '';
+let pairingUrl = '';
+let secureControllerUrl = '';
 let qrCodeDataUrl = '';
+let certificateProfile = '';
+let rootCertificate = '';
 let recording = null;
 let config;
 
@@ -99,7 +106,9 @@ function statusSnapshot() {
     localIP,
     oscInputPort: OSC_INPUT_PORT,
     controllerPort: CONTROLLER_PORT,
-    controllerUrl,
+    setupPort: SETUP_PORT,
+    controllerUrl: pairingUrl,
+    secureControllerUrl,
     qrCodeDataUrl,
     connectedPhones: [...phoneClients.values()].map(({ id, name, connectedAt, lastSeen }) => ({
       id,
@@ -107,7 +116,9 @@ function statusSnapshot() {
       connectedAt,
       lastSeen,
     })),
-    recording: recording ? { active: true, filePath: recording.filePath, startedAt: recording.startedAt } : { active: false },
+    recording: recording
+      ? { active: true, filePath: recording.filePath, startedAt: recording.startedAt }
+      : { active: false },
     config: { ...config },
   };
 }
@@ -162,54 +173,174 @@ function startOscServer() {
   oscServer.on('error', (error) => sendBridgeError(`OSC server: ${error.message}`));
 }
 
-async function ensureCertificate() {
-  const certificateDir = path.join(app.getPath('userData'), 'certificate');
-  const keyPath = path.join(certificateDir, 'key.pem');
-  const certPath = path.join(certificateDir, 'cert.pem');
-  const metadataPath = path.join(certificateDir, 'metadata.json');
-
+async function readCertificateSet(paths, metadataPath, validator) {
   try {
     const metadata = JSON.parse(await fsp.readFile(metadataPath, 'utf8'));
-    const [key, cert] = await Promise.all([
-      fsp.readFile(keyPath, 'utf8'),
-      fsp.readFile(certPath, 'utf8'),
-    ]);
-    if (metadata.localIP === localIP && Date.now() < Number(metadata.expiresAt) - 7 * 24 * 60 * 60 * 1000) {
-      return { key, cert };
-    }
+    const values = await Promise.all(paths.map((filePath) => fsp.readFile(filePath, 'utf8')));
+    if (validator(metadata)) return { metadata, values };
   } catch {
-    // Generate a new certificate below.
+    // Generate the missing or expired certificate below.
   }
+  return null;
+}
 
+async function ensureCertificates() {
+  const certificateDir = path.join(app.getPath('userData'), 'certificate');
+  const rootKeyPath = path.join(certificateDir, 'root-ca-key.pem');
+  const rootCertPath = path.join(certificateDir, 'root-ca-cert.pem');
+  const rootMetadataPath = path.join(certificateDir, 'root-ca-metadata.json');
+  const serverKeyPath = path.join(certificateDir, 'server-key.pem');
+  const serverCertPath = path.join(certificateDir, 'server-cert.pem');
+  const serverMetadataPath = path.join(certificateDir, 'server-metadata.json');
   await fsp.mkdir(certificateDir, { recursive: true });
-  const expiresAt = Date.now() + 825 * 24 * 60 * 60 * 1000;
-  const generated = await selfsigned.generate(
-    [{ name: 'commonName', value: 'OSC Bridge' }],
-    {
-      algorithm: 'sha256',
-      keySize: 2048,
-      notBeforeDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      notAfterDate: new Date(expiresAt),
-      extensions: [
-        { name: 'basicConstraints', cA: true },
-        {
-          name: 'subjectAltName',
-          altNames: [
-            { type: 2, value: 'localhost' },
-            { type: 7, ip: '127.0.0.1' },
-            { type: 7, ip: localIP },
-          ],
-        },
-      ],
-    },
+
+  let root = await readCertificateSet(
+    [rootKeyPath, rootCertPath],
+    rootMetadataPath,
+    (metadata) => Date.now() < Number(metadata.expiresAt) - 30 * DAY
+      && typeof metadata.profileUUID === 'string'
+      && typeof metadata.certificateUUID === 'string',
   );
 
-  await Promise.all([
-    fsp.writeFile(keyPath, generated.private, { mode: 0o600 }),
-    fsp.writeFile(certPath, generated.cert, 'utf8'),
-    fsp.writeFile(metadataPath, JSON.stringify({ localIP, expiresAt }, null, 2), 'utf8'),
-  ]);
-  return { key: generated.private, cert: generated.cert };
+  if (!root) {
+    const expiresAt = Date.now() + 10 * 365 * DAY;
+    const generated = await selfsigned.generate(
+      [{ name: 'commonName', value: 'OSC Bridge Local Root' }],
+      {
+        algorithm: 'sha256',
+        keySize: 2048,
+        notBeforeDate: new Date(Date.now() - DAY),
+        notAfterDate: new Date(expiresAt),
+        extensions: [
+          { name: 'basicConstraints', cA: true, critical: true },
+          {
+            name: 'keyUsage',
+            digitalSignature: true,
+            keyCertSign: true,
+            cRLSign: true,
+            critical: true,
+          },
+        ],
+      },
+    );
+    const metadata = {
+      expiresAt,
+      profileUUID: crypto.randomUUID().toUpperCase(),
+      certificateUUID: crypto.randomUUID().toUpperCase(),
+    };
+    await Promise.all([
+      fsp.writeFile(rootKeyPath, generated.private, { mode: 0o600 }),
+      fsp.writeFile(rootCertPath, generated.cert, 'utf8'),
+      fsp.writeFile(rootMetadataPath, JSON.stringify(metadata, null, 2), 'utf8'),
+    ]);
+    root = { metadata, values: [generated.private, generated.cert] };
+  }
+
+  const [rootKey, rootCert] = root.values;
+  let server = await readCertificateSet(
+    [serverKeyPath, serverCertPath],
+    serverMetadataPath,
+    (metadata) => metadata.localIP === localIP && Date.now() < Number(metadata.expiresAt) - 7 * DAY,
+  );
+
+  if (!server) {
+    const expiresAt = Date.now() + 365 * DAY;
+    const generated = await selfsigned.generate(
+      [{ name: 'commonName', value: localIP }],
+      {
+        algorithm: 'sha256',
+        keySize: 2048,
+        notBeforeDate: new Date(Date.now() - DAY),
+        notAfterDate: new Date(expiresAt),
+        ca: { key: rootKey, cert: rootCert },
+        extensions: [
+          { name: 'basicConstraints', cA: false, critical: true },
+          {
+            name: 'keyUsage',
+            digitalSignature: true,
+            keyEncipherment: true,
+            critical: true,
+          },
+          { name: 'extKeyUsage', serverAuth: true },
+          {
+            name: 'subjectAltName',
+            altNames: [
+              { type: 2, value: 'localhost' },
+              { type: 7, ip: '127.0.0.1' },
+              { type: 7, ip: localIP },
+            ],
+          },
+        ],
+      },
+    );
+    const metadata = { localIP, expiresAt };
+    await Promise.all([
+      fsp.writeFile(serverKeyPath, generated.private, { mode: 0o600 }),
+      fsp.writeFile(serverCertPath, generated.cert, 'utf8'),
+      fsp.writeFile(serverMetadataPath, JSON.stringify(metadata, null, 2), 'utf8'),
+    ]);
+    server = { metadata, values: [generated.private, generated.cert] };
+  }
+
+  const [serverKey, serverCert] = server.values;
+  return {
+    key: serverKey,
+    cert: `${serverCert.trim()}\n${rootCert.trim()}\n`,
+    rootCert,
+    profileUUID: root.metadata.profileUUID,
+    certificateUUID: root.metadata.certificateUUID,
+  };
+}
+
+function buildAppleCertificateProfile(certificatePem, profileUUID, certificateUUID) {
+  const certificateBase64 = certificatePem
+    .replace(/-----BEGIN CERTIFICATE-----/g, '')
+    .replace(/-----END CERTIFICATE-----/g, '')
+    .replace(/\s+/g, '');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadCertificateFileName</key>
+      <string>osc-bridge-local-root.cer</string>
+      <key>PayloadContent</key>
+      <data>${certificateBase64}</data>
+      <key>PayloadDescription</key>
+      <string>Trusts the OSC Bridge controller hosted by this computer.</string>
+      <key>PayloadDisplayName</key>
+      <string>OSC Bridge Local Root</string>
+      <key>PayloadIdentifier</key>
+      <string>com.joshmzamora.oscbridge.root</string>
+      <key>PayloadType</key>
+      <string>com.apple.security.root</string>
+      <key>PayloadUUID</key>
+      <string>${certificateUUID}</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>Installs the local root certificate required for secure iPhone motion access.</string>
+  <key>PayloadDisplayName</key>
+  <string>OSC Bridge Certificate</string>
+  <key>PayloadIdentifier</key>
+  <string>com.joshmzamora.oscbridge.profile</string>
+  <key>PayloadOrganization</key>
+  <string>OSC Bridge</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>${profileUUID}</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>`;
 }
 
 function contentType(filePath) {
@@ -222,6 +353,100 @@ function contentType(filePath) {
     '.png': 'image/png',
     '.svg': 'image/svg+xml; charset=utf-8',
   }[extension] || 'application/octet-stream';
+}
+
+function validSessionUrl(request, protocol) {
+  const requestUrl = new URL(request.url, `${protocol}://${request.headers.host || 'localhost'}`);
+  return { requestUrl, valid: requestUrl.searchParams.get('token') === sessionToken };
+}
+
+function setupPage() {
+  const profileUrl = `http://${localIP}:${SETUP_PORT}/osc-bridge.mobileconfig?token=${encodeURIComponent(sessionToken)}`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0d12">
+  <title>Set up OSC Bridge</title>
+  <style>
+    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0a0d12; color: #f5f7fa; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100dvh; padding: max(24px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom)); display: grid; place-items: center; background: radial-gradient(circle at 80% 0%, rgba(56,189,248,.14), transparent 35%), #0a0d12; }
+    main { width: min(540px, 100%); }
+    .eyebrow { margin: 0 0 5px; color: #7dd3fc; font-size: .75rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(2rem, 9vw, 3rem); letter-spacing: -.05em; }
+    .lead { margin: 12px 0 22px; color: #a8b3c2; line-height: 1.5; }
+    .card { padding: 18px; border: 1px solid #2b3542; border-radius: 20px; background: #111720; }
+    ol { margin: 0; padding-left: 22px; display: grid; gap: 15px; line-height: 1.45; }
+    strong { color: #fff; }
+    .buttons { display: grid; gap: 11px; margin-top: 20px; }
+    a { min-height: 50px; padding: 0 18px; display: grid; place-items: center; border: 1px solid #3a4657; border-radius: 14px; color: #f5f7fa; font-weight: 800; text-decoration: none; background: #18212d; }
+    a.primary { border-color: #38bdf8; background: #38bdf8; color: #061019; }
+    .note { margin: 14px 2px 0; color: #8390a0; font-size: .82rem; line-height: 1.45; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">OSC Bridge</p>
+    <h1>Set up this iPhone</h1>
+    <p class="lead">The certificate is installed once. After that, this computer can use Safari's motion sensors securely whenever OSC Bridge is running.</p>
+    <section class="card">
+      <ol>
+        <li>Tap <strong>Download certificate</strong>, then allow the profile download.</li>
+        <li>Open <strong>Settings → General → VPN &amp; Device Management</strong>, select OSC Bridge, and tap Install.</li>
+        <li>Open <strong>Settings → General → About → Certificate Trust Settings</strong> and enable full trust for OSC Bridge Local Root.</li>
+        <li>Return here and tap <strong>Open motion controller</strong>.</li>
+      </ol>
+      <div class="buttons">
+        <a href="${profileUrl}">Download certificate</a>
+        <a class="primary" href="${secureControllerUrl}">Open motion controller</a>
+      </div>
+    </section>
+    <p class="note">Only install this certificate from your own OSC Bridge computer. You can remove it later in Settings → General → VPN &amp; Device Management.</p>
+  </main>
+</body>
+</html>`;
+}
+
+async function serveSetup(request, response) {
+  const { requestUrl, valid } = validSessionUrl(request, 'http');
+  if (requestUrl.pathname === '/health') {
+    response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+    response.end(JSON.stringify({ ok: true, secureControllerUrl }));
+    return;
+  }
+  if (!valid) {
+    response.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' });
+    response.end('This pairing link is expired. Scan the current QR code on the computer.');
+    return;
+  }
+  if (requestUrl.pathname === '/osc-bridge.mobileconfig') {
+    response.writeHead(200, {
+      'content-type': 'application/x-apple-aspen-config',
+      'content-disposition': 'attachment; filename="osc-bridge.mobileconfig"',
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
+    });
+    response.end(certificateProfile);
+    return;
+  }
+  if (requestUrl.pathname === '/osc-bridge-root.cer') {
+    response.writeHead(200, {
+      'content-type': 'application/x-x509-ca-cert',
+      'content-disposition': 'attachment; filename="osc-bridge-local-root.cer"',
+      'cache-control': 'no-store',
+    });
+    response.end(rootCertificate);
+    return;
+  }
+  response.writeHead(200, {
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
+    'referrer-policy': 'no-referrer',
+  });
+  response.end(setupPage());
 }
 
 async function serveController(request, response) {
@@ -253,6 +478,7 @@ async function serveController(request, response) {
       'cache-control': 'no-store',
       'x-content-type-options': 'nosniff',
       'referrer-policy': 'no-referrer',
+      'permissions-policy': 'accelerometer=(self), gyroscope=(self)',
     });
     response.end(contents);
   } catch {
@@ -276,7 +502,7 @@ function registerPhone(socket, request) {
   dispatchToSketch(`/phone/${id}/status`, ['connected', phone.name], { source: 'phone', deviceId: id });
   sendStatus();
 
-  socket.on('message', async (data) => {
+  socket.on('message', (data) => {
     if (data.length > MAX_WS_MESSAGE_BYTES) {
       socket.close(1009, 'Message too large');
       return;
@@ -320,13 +546,38 @@ function registerPhone(socket, request) {
   socket.on('error', (error) => sendBridgeError(`Phone connection: ${error.message}`));
 }
 
-async function startControllerServer() {
-  const credentials = await ensureCertificate();
-  sessionToken = crypto.randomBytes(18).toString('base64url');
-  controllerUrl = `https://${localIP}:${CONTROLLER_PORT}/?token=${encodeURIComponent(sessionToken)}`;
-  qrCodeDataUrl = await QRCode.toDataURL(controllerUrl, { errorCorrectionLevel: 'M', margin: 1, width: 360 });
+async function listen(server, port) {
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, '0.0.0.0', () => {
+      server.off('error', reject);
+      resolve();
+    });
+  });
+}
 
-  secureServer = https.createServer(credentials, (request, response) => {
+async function startControllerServers() {
+  const credentials = await ensureCertificates();
+  rootCertificate = credentials.rootCert;
+  certificateProfile = buildAppleCertificateProfile(
+    credentials.rootCert,
+    credentials.profileUUID,
+    credentials.certificateUUID,
+  );
+  sessionToken = crypto.randomBytes(18).toString('base64url');
+  secureControllerUrl = `https://${localIP}:${CONTROLLER_PORT}/?token=${encodeURIComponent(sessionToken)}`;
+  pairingUrl = `http://${localIP}:${SETUP_PORT}/?token=${encodeURIComponent(sessionToken)}`;
+  qrCodeDataUrl = await QRCode.toDataURL(pairingUrl, { errorCorrectionLevel: 'M', margin: 1, width: 360 });
+
+  setupServer = http.createServer((request, response) => {
+    serveSetup(request, response).catch((error) => {
+      response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
+      response.end('Setup server error');
+      sendBridgeError(error.message);
+    });
+  });
+
+  secureServer = https.createServer({ key: credentials.key, cert: credentials.cert }, (request, response) => {
     serveController(request, response).catch((error) => {
       response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
       response.end('Controller server error');
@@ -337,13 +588,10 @@ async function startControllerServer() {
   webSocketServer.on('connection', registerPhone);
   webSocketServer.on('error', (error) => sendBridgeError(`Controller server: ${error.message}`));
 
-  await new Promise((resolve, reject) => {
-    secureServer.once('error', reject);
-    secureServer.listen(CONTROLLER_PORT, '0.0.0.0', () => {
-      secureServer.off('error', reject);
-      resolve();
-    });
-  });
+  await Promise.all([
+    listen(setupServer, SETUP_PORT),
+    listen(secureServer, CONTROLLER_PORT),
+  ]);
 }
 
 async function startRecording() {
@@ -467,13 +715,21 @@ function registerIpc() {
   });
 }
 
+function closeNodeServer(server) {
+  if (!server?.listening) return Promise.resolve();
+  return new Promise((resolve) => server.close(resolve));
+}
+
 async function shutdown() {
   await stopRecording().catch(() => {});
   sketchWatcher?.close();
   for (const phone of phoneClients.values()) phone.socket.close(1001, 'Bridge shutting down');
   phoneClients.clear();
   webSocketServer?.close();
-  if (secureServer) await new Promise((resolve) => secureServer.close(resolve));
+  await Promise.all([
+    closeNodeServer(setupServer),
+    closeNodeServer(secureServer),
+  ]);
   if (oscServer) await oscServer.close().catch(() => {});
   await Promise.all([...oscClients.values()].map((client) => client.close().catch(() => {})));
   oscClients.clear();
@@ -486,7 +742,7 @@ app.whenReady().then(async () => {
   createWindow();
   try {
     startOscServer();
-    await startControllerServer();
+    await startControllerServers();
     sendStatus();
   } catch (error) {
     sendBridgeError(error.message);
