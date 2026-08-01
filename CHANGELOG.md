@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.1
+
+- Fixed the Palm Cove startup overlay remaining above a running match in packaged Windows builds.
+- Replaced asynchronous document-write hydration with an explicit document head/body swap.
+- Added a startup timeout with a visible error state instead of an indefinite loading spinner.
+- Expanded the Electron end-to-end test to verify the loader, loading title, and duplicate document structure are removed.
+
 ## 2.2.0
 
 - Replaced the basic side-view Pong prototype with Palm Cove Table Tennis, a complete original clean-room motion-controlled table-tennis game.

@@ -1,6 +1,6 @@
 {
   "name": "osc_bridge",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "A standalone Electron bridge for phone motion, touch, OSC workflows, and phone-controlled games.",
   "license": "MIT",
   "author": "Yonatan Rozin; enhancements by Joshua Zamora",
